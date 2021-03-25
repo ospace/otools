@@ -266,8 +266,8 @@
             mixinObject.call(obj);
             return obj;
         },
-        on: function(elem, event, selector, listener, options) {
-            if(!(elem && event)) return;
+        on: function(elem, type, selector, listener, options) {
+            if(!(elem && type)) return;
             if (selector instanceof Function) {
                 options = listener;
                 listener = selector;
@@ -276,13 +276,17 @@
             if (!(listener instanceof Function)) {
                 throw TypeError('listener must be function');
             }
-            elem.addEventListener(event, selector ? function (ev) {
+            elem.addEventListener(type, selector ? function (ev) {
                 ev.target.matches(selector) && listener.call(ev.target, ev);
             } : function(ev) {
                 listener.call(ev.target, ev);
             }, options);
         },
         off: function(elem, type, listener, options) {
+            if(!(elem && type)) return;
+            if (!(listener instanceof Function)) {
+                throw TypeError('listener must be function');
+            }
             elem.removeEventListener(elem, type, listener, options);
         },
         redirectForm: function (url, data) {
