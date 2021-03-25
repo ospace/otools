@@ -68,7 +68,7 @@
                 <td align="center">{{id}}</td>
                 <td align="center">{{message}}</td>
                 <td align="center"><input type="text" o-model="message"></td>
-                <td align="center"><button type="button" data-id="{{id}}"onclick="onRemove(event)">X</button></td>
+                <td align="center"><button type="button" data-id="{{id}}">X</button></td>
             </tr>
         </table>
     </div>
@@ -108,17 +108,6 @@
             return val && val.toUpperCase();
         }
 
-        function onRemove(ev) {
-            var id = ev.target.dataset.id;
-            var idx = data.items.findIndex(function(it) { return it.id == id });
-            if(!(idx && 0 <= idx))  {
-                alert('item not found: '+id+'->'+idx);
-                return;
-            }
-        
-            data.items.splice(idx, 1);
-        }
-
         function  onAdd(ev) {
             var parent = ev.target.parentElement;
             var input = parent.querySelector('input[type=text]');
@@ -128,6 +117,17 @@
             data.items.push({message:value, id:maxId+1});
             
         }
+
+        o.on(document.querySelector('table'), 'click', 'button', function(ev) {
+            var id = ev.target.dataset.id;
+            var idx = data.items.findIndex(function(it) { return it.id == id });
+            if(!(idx && 0 <= idx))  {
+                alert('item not found: '+id+'->'+idx);
+                return;
+            }
+        
+            data.items.splice(idx, 1);
+        });
 	</script>
 </body>
 </html>

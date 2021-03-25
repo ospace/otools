@@ -252,7 +252,7 @@
         find: d.querySelector.bind(d),
         findAll: d.querySelectorAll.bind(d),
         findAllByClass: d.getElementsByClassName.bind(d),
-        fidAllByTag: d.getElementByTagName.bind(d),
+        fidAllByTag: d.getElementsByTagName.bind(d),
         assign: function (target, source) {
             var target_ = target || {};
             for (var key in source) {
@@ -265,6 +265,25 @@
             var obj = this.assign(d.createElement(name), attributes);
             mixinObject.call(obj);
             return obj;
+        },
+        on: function(elem, event, selector, listener, options) {
+            if(!(elem && event)) return;
+            if (selector instanceof Function) {
+                options = listener;
+                listener = selector;
+                selector = null;
+            }
+            if (!(listener instanceof Function)) {
+                throw TypeError('listener must be function');
+            }
+            elem.addEventListener(event, selector ? function (ev) {
+                ev.target.matches(selector) && listener.call(ev.target, ev);
+            } : function(ev) {
+                listener.call(ev.target, ev);
+            }, options);
+        },
+        off: function(elem, type, listener, options) {
+            elem.removeEventListener(elem, type, listener, options);
         },
         redirectForm: function (url, data) {
             var form = this.createTag('form', {method: 'post', action: url});
