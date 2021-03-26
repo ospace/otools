@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<title>sample2</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="description" content="" />
+	<meta name="keywords" content="" />
+	<meta name="robots" content="index,follow" />
+</head>
+<body>
+	<h1>Ajax</h1>
+    <button></button>
+    <script src="../src/otools.js"></script>
+	<script>
+        'use strict';
+		
+        o.ajax({
+            method: 'GET',
+            url: 'https://dummyapi.io/data/api/user?limit=10'
+        })
+        .then(function(res) {
+            console.log('>>', res);
+        })
+	</script>
+</body>
+</html>

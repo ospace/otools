@@ -239,12 +239,24 @@
         this.off = this.removeEventListener;
     }
 
+    function mixinXhr () {
+        var responseText = this.responseText;
+        this.json = cached( function () { return JSON.parse(responseText) } );
+        this.xml = cached( function () { return parseXML(responseText) } );
+    }
+
     function cached(fn) {
         var cache = Object.create(null);
         return function cachedFn(arg) {
             var hit = cache[arg];
             return hit || (cache[arg] = fn(arg));
         };
+    }
+
+    function parseXML (text) {
+        var parser = new DOMParser();
+        var res = parser.parseFromString(text, 'text/xml');
+        return res.firstChild;
     }
 
     return {
@@ -329,28 +341,17 @@
             }
             return -1;
         },
-        parseXML: function (text) {
-            var parser = new DOMParser();
-            var res = parser.parseFromString(text, 'text/xml');
-            return res.firstChild;
-        },
+        parseXML: parseXML,
         ajax: function (opts, data) {
-            opts = assign({method: 'GET', responseType:'', headers:{}}, opts);
+            opts = this.assign({method: 'GET', responseType:'', headers:{}}, opts);
             return new Promise(function(resolve, reject) {
                 var xhr = new XMLHttpRequest();
                 xhr.responseType = opts.responseType;
                 try {
                     xhr.onreadystatechange = function() {
                         if (xhr.readyState === XMLHttpRequest.DONE) {
-                            if (200 <= xhr.status && xhr.status <= 202) {
-                                //TODO xml
-                                xhr.json = function() {
-                                    return Promise.resolve(xhr.responseText);
-                                };
-                                resolve(xhr);
-                            } else {
-                                reject(xhr);
-                            }
+                            mixinXhr.call(xhr);
+                            resolve(xhr);
                         }
                     };
                     xhr.open(opts.method, opts.url, true);
@@ -579,15 +580,20 @@
                 }
             });
         },
-        forEachNode: function (node, visitor) {
+        iterateNode: function (node, visitor) {
             if(!(visitor instanceof Function))  throw TypeError('visit must be a function');
 
             if(!node) return;
 
+            var visited = this.now();
             var waits = [node.firstChild];
             var node;
             while(0 < waits.length) {
                 while(node = waits[waits.length-1]) {
+                    if (node._o_visited === visited) {
+                        throw Error('loopping in the dom tree: '+node.localname+'('+node.className+')');
+                    }
+                    node._o_visited === visited;
                     waits[waits.length-1]=node.nextSibling;
                     if (false === visitor(node)) break;
                     node.firstChild && waits.push(node.firstChild);
@@ -642,7 +648,7 @@
                 ev.target._o_handler && ev.target._o_handler();
             });
             
-            this.forEachNode(elem, function(node) {
+            this.iterateNode(elem, function(node) {
                 if (1===node.nodeType) {
                     if (node.hasAttribute('o-model')) {
                         if (!!~'INPUT SELECT TEXTAREA'.indexOf(node.tagName)) {
