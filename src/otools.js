@@ -237,20 +237,42 @@
     function mixinObject () {
         this.on = this.addEventListener;
         this.off = this.removeEventListener;
+        return this;
     }
 
-    function mixinXhr () {
-        var responseText = this.responseText;
-        this.json = cached( function () { return JSON.parse(responseText) } );
-        this.xml = cached( function () { return parseXML(responseText) } );
+    function mixinHttpResponse () {
+        var text = this.bodyText;
+        this.json = cached( function () { return JSON.parse(text) } );
+        this.xml = cached( function () { return parseXML(text) } );
     }
 
-    function cached(fn) {
+    function cached (fn) {
         var cache = Object.create(null);
         return function cachedFn(arg) {
             var hit = cache[arg];
             return hit || (cache[arg] = fn(arg));
         };
+    }
+
+    function mixin (target) {
+        for(var i=1; i<arguments.length; ++i) {
+            var arg = arguments[i];
+            if(arg instanceof Function) {
+                arg.call(target);
+            } else {
+                assign(target.prototype, arg);
+            }
+        }
+        return target;
+    }
+
+    function assign (target, source, deep) {
+        var target_ = target || {};
+        for (var key in source) {
+            var src = source[key];
+            target_[key] = (deep && src instanceof Object) ? assign(target_[key], src) : src;
+        }
+        return target_;
     }
 
     function parseXML (text) {
@@ -259,20 +281,90 @@
         return res.firstChild;
     }
 
+    function Next(handler) {
+        if(!(handler instanceof Function)) {
+            throw TypeError('handler must be function');
+        }
+
+        this.fulfillHandlers = [];
+        this.rejectHandlers = [];
+        this.hasResponse = false;
+        this.occureError = false;
+        try {
+            handler(this.onFullfill.bind(this), this.onReject.bind(this));
+        } catch(ex) {
+            this.onReject(ex);
+        }
+    }
+
+    mixin(Next, {
+        onFullfill: function (response)  {
+            if (this.hasResponse || this.occureError) return;
+            this.hasResponse = true;
+            this.response = response;
+            this.callFullfillHandler(response);
+        },
+        callFullfillHandler: function(response) {
+            try {
+                var res = response;
+                this.fulfillHandlers.forEach(function(each, idx) {
+                    res = each(res);
+                });
+            } catch (ex) {
+                this.onReject(ex);
+            }
+        },
+        then: function (handler) {
+            this.fulfillHandlers.push(handler);
+            if (this.hasResponse) {
+                var response = this.response;
+                this.response = null;
+                this.callFullfillHandler(response);
+            }
+            return  this;
+        },
+        onReject: function(error) { 
+            if (this.occureError) return;
+            this.occureError = true;
+            this.error = error;
+            this.callRejectHandlers(error);
+        },
+        callRejectHandlers: function (error) {
+            var err = error;
+            this.rejectHandlers.forEach(function(each, idx) {
+                err = each(err);
+            });
+        },
+        catch: function (handler) {
+            this.rejectHandlers.push(handler);
+            if (this.occureError) {
+                var error = this.error;
+                this.error = null;
+                this.callRejectHandlers(error);
+            }
+            return this;
+        }
+    });
+
+    function HttpResponse(xhr) {
+        this.status = xhr.status;
+        this.statusText = xhr.statusText;
+        this.body = xhr.response;
+        this.bodyText = xhr.responseText;
+        var headers = this.headers = {};
+        xhr.getAllResponseHeaders().split('\r\n').forEach(function(each) {
+            var p = each.indexOf(':');
+            ~p && (headers[each.substring(0, p).trim()] = each.substring(p+1).trim());
+        });
+    }
+
     return {
         getById: d.getElementById.bind(d),
         find: d.querySelector.bind(d),
         findAll: d.querySelectorAll.bind(d),
         findAllByClass: d.getElementsByClassName.bind(d),
         fidAllByTag: d.getElementsByTagName.bind(d),
-        assign: function (target, source) {
-            var target_ = target || {};
-            for (var key in source) {
-                var src = source[key];
-                target_[key] = src instanceof Object ? this.assign(target_[key], src) : src;
-            }
-            return target_;
-        },
+        assign: assign,
         createTag: function (name, attributes) {
             var obj = this.assign(d.createElement(name), attributes);
             mixinObject.call(obj);
@@ -343,15 +435,19 @@
         },
         parseXML: parseXML,
         ajax: function (opts, data) {
-            opts = this.assign({method: 'GET', responseType:'', headers:{}}, opts);
-            return new Promise(function(resolve, reject) {
-                var xhr = new XMLHttpRequest();
-                xhr.responseType = opts.responseType;
+            opts = assign({method: 'GET', responseType:'', headers:{}}, opts, true);
+            data = data || opts.data;
+            
+            return new Next(function(resolve, reject) {
                 try {
+                    var xhr = new XMLHttpRequest();
+                    opts.responseType  && (xhr.responseType = opts.responseType);
+               
                     xhr.onreadystatechange = function() {
                         if (xhr.readyState === XMLHttpRequest.DONE) {
-                            mixinXhr.call(xhr);
-                            resolve(xhr);
+                            var res = new HttpResponse(xhr);
+                            mixinHttpResponse.call(res);
+                            resolve(res);
                         }
                     };
                     xhr.open(opts.method, opts.url, true);
@@ -382,24 +478,30 @@
             }
             return ret;
         },
+        ajaxJson: function (opts, data) {
+            opts = assign({method: 'GET'},  opts, true);
+            opts.url = opts.url+'?'+this.toQueryString(queryData, true);
+            opts.headers = assign(opts.headers || {}, {'Content-Type':'application/json;charset=UTF-8'});
+
+            var queryData = null;
+            if (data && ('GET'===opts.method || 'DELETE'===opts.method)) {
+                queryData = data;
+                data = null;
+            }
+            
+            return this.ajax(opts, data&&JSON.stringify(data)).then(function(res) { return res.json() });
+        },
         getJson: function (url, data) {
-            return this.ajax({url: url+'?'+this.toQueryString(data, true), method: 'GET', headers: jsonHeaders})
-                   .then(function(res) { return res.json() });
+            return this.ajaxJson({url:url, method:'GET'}, data);
         },
         postJson: function (url, data) {
-            var jsonStr = JSON.stringify(data);
-            return this.ajax({url: url+'?'+this.toQueryString(null, true), method: 'POST', headers: jsonHeaders}, jsonStr)
-                   .then(function(res) { return res.json() });
+            return this.ajaxJson({url:url, method:'POST'}, data);
         },
         putJson: function (url, data) {
-            var jsonStr = JSON.stringify(data);
-            return this.ajax({url: url+'?'+this.toQueryString(null, true), method: 'PUT', headers: jsonHeaders}, jsonStr)
-                   .then(function(res) { return res.json() });
+            return this.ajaxJson({url:url, method:'PUT'}, data);
         },
         deleteJson: function (url, data) {
-            var param = this.toQueryString(data, true);
-            return this.ajax({url: url+'?'+param, method: 'DELETE', headers: jsonHeaders})
-                   .then(function(res) { return res.json() });
+            return this.ajaxJson({url:url, method:'DELETE'}, data);
         },
         postForm: function (url, formData) {
             return this.ajax({url:url+'?'+this.toQueryString(null, true), method:'POST'}, formData)
@@ -415,7 +517,7 @@
             return this.ajax({url: url, method: 'POST', headers: multipartHeaders}, formData);
         },
         readFile: function (file) {
-            return new Promise(function(resolve, reject) {
+            return new Next(function(resolve, reject) {
                 var reader = new FileReader();
                 reader.onload = function(ev) {
                     resolve(ev.target.result);
@@ -491,16 +593,7 @@
             sub.base = base;
             return sub;
         },
-        mixin: function (target) {
-            if(0 === arguments.length) return;
-            if(Function instanceof arguments[0]) {
-                for(var i=0; i<arguments.length; ++i) {
-                    arguments[i].call(target);
-                }
-            } else {
-                Object.assign.apply(void 0, [target.prototype].concat(arguments));
-            }
-        },
+        mixin: mixin,
         cached: cached,
         once: function (fn) {
             var called = false;

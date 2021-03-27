@@ -9,18 +9,161 @@
 </head>
 <body>
 	<h1>Ajax</h1>
-    <button></button>
+    <select>
+        <option>GET</option>
+        <option>POST</option>
+        <option>PUT</option>
+        <option>DELETE</option>
+    </select>
+    <button onclick="onSimpleCall(event)">SimpleCall</button>
+    <button onclick="onJsonCall(event)">JsonCall</button>
     <script src="../src/otools.js"></script>
 	<script>
         'use strict';
-		
-        o.ajax({
-            method: 'GET',
-            url: 'https://dummyapi.io/data/api/user?limit=10'
+		var method = document.querySelector('select');
+
+        function onSimpleCall(ev) {
+            console.log('onSimpleCall begin');
+            o.ajax({
+                method: method.selectedOptions[0].value,
+                url: 'https://my-json-server.typicode.com/typicode/demo/posts'
+            })
+            .then(function(res) {
+                //console.log('>>', res);
+                if ( 200 <= res.status || res.status < 300) return res.json();
+                console.warn('>>', res.status, res.statusText);
+            }).then(function(json) {
+                console.log('>> json:', json);
+            });
+        }
+
+        function onJsonCall(ev) {
+            console.log('onSimpleCall begin');
+            var methodName = method.selectedOptions[0].value;
+            o[methodName.toLowerCase()+'Json']('https://my-json-server.typicode.com/typicode/demo/posts',  {name:'foo'})
+            .then(function(res) {
+                console.log('>>', res);
+            })
+            .catch(function (err) {
+                console.error('>>', err);
+            })
+        }
+
+        function Next(handler) {
+            if(!(handler instanceof Function)) {
+                throw TypeError('handler must be function');
+            }
+
+            this.fulfillHandlers = [];
+            this.rejectHandlers = [];
+            this.hasResponse = false;
+            this.occureError = false;
+            try {
+                handler(this.onFullfill.bind(this), this.onReject.bind(this));
+            } catch(ex) {
+                this.onReject(ex);
+            }
+        }
+
+        o.mixin(Next, {
+            onFullfill: function (response)  {
+                if (this.hasResponse || this.occureError) return;
+                this.hasResponse = true;
+                this.response = response;
+                this.callFullfillHandler(response);
+            },
+            callFullfillHandler: function(response) {
+                try {
+                    var res = response;
+                    this.fulfillHandlers.forEach(function(each, idx) {
+                        res = each(res);
+                    });
+                } catch (ex) {
+                    this.onReject(ex);
+                }
+            },
+            then: function (handler) {
+                this.fulfillHandlers.push(handler);
+                if (this.hasResponse) {
+                    var response = this.response;
+                    this.response = null;
+                    this.callFullfillHandler(response);
+                }
+                return  this;
+            },
+            onReject: function(error) { 
+                if (this.occureError) return;
+                this.occureError = true;
+                this.error = error;
+                this.callRejectHandlers(error);
+            },
+            callRejectHandlers: function (error) {
+                var err = error;
+                this.rejectHandlers.forEach(function(each, idx) {
+                    err = each(err);
+                });
+            },
+            catch: function (handler) {
+                this.rejectHandlers.push(handler);
+                if (this.occureError) {
+                    var error = this.error;
+                    this.error = null;
+                    this.callRejectHandlers(error);
+                }
+                return this;
+            }
+        });
+        /*
+        var n1 = new Next(function(resolve, reject) {
+            setTimeout(_=>{
+                resolve('hello');
+            }, 0);
+        }).then(function (res) {
+            console.log('1> then1:', res);
+            return res + '_1';
+        }).then(function (res) {
+            console.log('1> then2:', res);
+            throw Error('wow!');
+        }).catch(function (err) {
+            console.log('1> catch:', err);
+        });
+        */
+        /*
+        var n2 = new Next(function(resolve, reject) {
+            reject('world');
+        });
+        n2.then(function (res) {
+            console.log('2> then:', res);
+        });
+        n2.catch(function (err) {
+            console.log('2> catch:', err);
+        });
+        */
+        /*
+        var n3 = new Next(function(resolve, reject) {
+            throw Error('wow!');
+        }).then(function (res) {
+            console.log('3> then:', res);
+        }).catch(function (err) {
+            console.log('3> catch:', err);
+        });
+        */
+/*
+        new Promise(function(resolve, reject) {
+            //resolve();
+            reject('world1');
+            reject('world2');
+            
+        }).then(function(res) {
+            console.log('> promise then:', res);
+            //throw Error('world');
+        }).catch(function(err) {
+            console.log('> promise catch1:', err);
+            throw Error('world3');
+        }).catch(function(err) {
+            console.log('> promise catch2:', err);
         })
-        .then(function(res) {
-            console.log('>>', res);
-        })
-	</script>
+        */
+    </script>
 </body>
 </html>
