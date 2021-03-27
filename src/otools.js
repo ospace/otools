@@ -8,8 +8,6 @@
     }
 }(this, function (w, d) {
     var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
-    var jsonHeaders = {'Content-Type':'application/json;charset=UTF-8'};
-    var multipartHeaders = {'Content-Type':'multipart/form-data'};
 
     function binder(obj, prop) {
         obj._o_ || Object.defineProperty(obj, '_o_', { value: {}, writable:true });
@@ -358,6 +356,20 @@
         });
     }
 
+    function convertToFormData (formData, key, value) {
+        if (Array.isArray(value)) {
+            for(var i=0; i<value.length; ++i) {
+                convertToFormData(formData, key+'['+i+']', value[i])
+            }
+        } else if ('object' === typeof value) {
+            for (var k in value) {
+                convertToFormData (formData, key+'.'+k, value[k]);
+            }
+        } else {
+            formData.append(key, value);
+        }
+    }
+
     return {
         getById: d.getElementById.bind(d),
         find: d.querySelector.bind(d),
@@ -504,17 +516,23 @@
             return this.ajaxJson({url:url, method:'DELETE'}, data);
         },
         postForm: function (url, formData) {
+            formData = this.convertToFormData(formData);
             return this.ajax({url:url+'?'+this.toQueryString(null, true), method:'POST'}, formData)
                 .then(function(res) { return res.json() });
         },
-        postMultipart: function (url, data) {
+        postMultipart: function (url, formData) {
             //TODO xhr.upload.onprogress 추가
-            var formData = new FormData();
+            formData = this.convertToFormData(formData);
+            return this.ajax({url: url, method: 'POST', headers: {'Content-Type':'multipart/form-data'}}, formData);
+        },
+        convertToFormData: function (data) {
+            if (!data || ~data.toString().lastIndexOf('FormData')) return data;
+
+            var ret = new FormData();
             for(var key in data) {
-                formData.append(key, data[key]);
+                convertToFormData(ret, key, data[key]);
             }
-        
-            return this.ajax({url: url, method: 'POST', headers: multipartHeaders}, formData);
+            return ret;
         },
         readFile: function (file) {
             return new Next(function(resolve, reject) {

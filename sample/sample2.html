@@ -17,6 +17,7 @@
     </select>
     <button onclick="onSimpleCall(event)">SimpleCall</button>
     <button onclick="onJsonCall(event)">JsonCall</button>
+    <button onclick="onFormCall(event)">FormCall</button>
     <script src="../src/otools.js"></script>
 	<script>
         'use strict';
@@ -48,6 +49,25 @@
                 console.error('>>', err);
             })
         }
+
+        function onFormCall(ev) {
+            console.log('onFormCall begin');
+            var data = {
+                name:'foo',
+                item:{id:10, name:'item'},
+                likes: ['coffee', 'love'],
+                items:[{type:'cpu', value:'amd'}, {type:'mem', value:'1T'}]
+            };
+            
+            o.postForm('https://my-json-server.typicode.com/typicode/demo/posts', data)
+            .then(function(res) {
+                console.log('>>', res);
+            })
+            .catch(function (err) {
+                console.error('>>', err);
+            });
+        }
+
 
         function Next(handler) {
             if(!(handler instanceof Function)) {
