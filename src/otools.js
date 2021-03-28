@@ -217,7 +217,7 @@
     }
     
     function onTextNode(obj, node) {
-        doTextReplacer(obj, node.textContent, function(get) {
+        node.textContent && doTextReplacer(obj, node.textContent, function(get) {
             var el = node;
             return function() { el.textContent = get() };
         });
@@ -453,7 +453,7 @@
         redirectWithoutHistory: function (url) {
             window.location.repalce(url);
         },
-        findIndex: function(array, compare) {
+        arrayIndex: function(array, compare) {
             if ('string' === typeof compare) {
                 var keyword = compare;
                 compare = function(val) { return val === keyword };
@@ -790,7 +790,7 @@
                     }
                     onDatasetNode(obj, node);
                 } else if (3===node.nodeType) {
-                    node.textContent && onTextNode(obj, node);
+                    onTextNode(obj, node);
                 }
             });
         }
