@@ -241,7 +241,7 @@
     function mixinHttpResponse () {
         var text = this.bodyText;
         this.json = cached( function () { return JSON.parse(text) } );
-        this.xml = cached( function () { return parseXML(text) } );
+        this.xml = cached( function () { return str2dom(text) } );
     }
 
     function cached (fn) {
@@ -273,9 +273,8 @@
         return target_;
     }
 
-    function parseXML (text) {
-        var parser = new DOMParser();
-        var res = parser.parseFromString(text, 'text/xml');
+    function str2dom (text) {
+        var res = new DOMParser().parseFromString(text, 'text/xml');
         return res.firstChild;
     }
 
@@ -371,16 +370,47 @@
     }
 
     return {
+        toArray: function (obj) {
+            return Array.prototype.slice.call(obj);
+        },
         getById: d.getElementById.bind(d),
-        find: d.querySelector.bind(d),
-        findAll: d.querySelectorAll.bind(d),
-        findAllByClass: d.getElementsByClassName.bind(d),
-        fidAllByTag: d.getElementsByTagName.bind(d),
+        find: function (selector, el) {
+            return (el || d).querySelector(selector);
+        },
+        findAll: function (selector, el) {
+            return this.toArray((el || d).querySelectorAll(selector));
+        },
+        findAllByClass: function(className, el) {
+            return this.toArray((el || d).getElementsByClassName(className));
+        },
+        findAllByTag: function(tagName, el) {
+            return this.toArray((el || d).getElementsByTagName(tagName));
+        },
+        findParent: function (el, compare) {
+            if (!(el&&compare)) return undefined;
+            if ('string' === typeof compare) {
+                var nodeName = compare.toUpperCase();
+                compare = function(node) { return node.nodeName === nodeName };
+            }
+            
+            do {
+                if (compare(el)) return el;
+                el = el.parentElement || el.parentNode;
+            } while(el && 1===el.nodeType);
+            return null;
+        },
         assign: assign,
-        createTag: function (name, attributes) {
-            var obj = this.assign(d.createElement(name), attributes);
+        tag2dom: function (tagName, attributes) {
+            var obj = this.assign(d.createElement(tagName), attributes);
             mixinObject.call(obj);
             return obj;
+        },
+        str2dom: str2dom,
+        dom2str: function (el) {
+            // TODO outerHTML
+            var div = d.createElement('div');
+            div.appendChild(el.parentElement ? el.cloneNode(true) : el);
+            return div.innerHTML;
         },
         on: function(elem, type, selector, listener, options) {
             if(!(elem && type)) return;
@@ -419,20 +449,6 @@
         redirectWithoutHistory: function (url) {
             window.location.repalce(url);
         },
-        findParent: function (target, compare) {
-            if (!(target&&compare)) return undefined;
-            if ('string' === typeof compare) {
-                var nodeName = compare.toUpperCase();
-                compare = function(node) { return node.nodeName === nodeName };
-            }
-            
-            var el = target;
-            do {
-                if (compare(el)) return el;
-                el = el.parentElement || el.parentNode;
-            } while(el && 1===el.nodeType);
-            return null;
-        },
         findIndex: function(array, compare) {
             if ('string' === typeof compare) {
                 var keyword = compare;
@@ -445,7 +461,6 @@
             }
             return -1;
         },
-        parseXML: parseXML,
         ajax: function (opts, data) {
             opts = assign({method: 'GET', responseType:'', headers:{}}, opts, true);
             data = data || opts.data;
