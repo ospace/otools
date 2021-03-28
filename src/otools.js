@@ -38,7 +38,7 @@
 
         filters.forEach(function(f) {
             if (!w[f] || 'function' !== typeof w[f]) {
-                throw TypeError('"'+f+'" is not exist or a function. it must be a function.');
+                throw TypeError('"'+f+'" is not exist or function. it must be a function.');
             }
         });
 
@@ -355,6 +355,10 @@
         });
     }
 
+    function newFunction(str) {
+        return new Function('with(this){return '+str+'}');
+    }
+
     function convertToFormData (formData, key, value) {
         if (Array.isArray(value)) {
             for(var i=0; i<value.length; ++i) {
@@ -370,9 +374,6 @@
     }
 
     return {
-        toArray: function (obj) {
-            return Array.prototype.slice.call(obj);
-        },
         getById: d.getElementById.bind(d),
         find: function (selector, el) {
             return (el || d).querySelector(selector);
@@ -398,6 +399,9 @@
                 el = el.parentElement || el.parentNode;
             } while(el && 1===el.nodeType);
             return null;
+        },
+        toArray: function (obj) {
+            return Array.prototype.slice.call(obj);
         },
         assign: assign,
         tag2dom: function (tagName, attributes) {
@@ -728,7 +732,7 @@
             }
         },
         evalInContext: function (str, ctx) {
-            (new Function('with(this) { return '+str+'}')).call(ctx);
+            return newFunction(str).call(ctx);
         },
         now: w.performance && w.performance.timing && w.performance.now && w.performance.timing.navigationStart ?
             function () {
@@ -736,7 +740,7 @@
             } : function () {
                 return (new Date()).getTime();
             },
-        changeAttribute: function (dom, callback) {
+        changeAttribute: function (dom, name, callback) {
             if(!(callback instanceof Function)) {
                 throw TypeError('callback must be a function');
             }
