@@ -8,7 +8,7 @@
     }
 }(this, function (w, d) {
     var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
-
+    var tickData = {};
     function binder(obj, prop) {
         obj._o_ || Object.defineProperty(obj, '_o_', { value: {}, writable:true });
         var bindings = obj._o_[prop];
@@ -19,11 +19,11 @@
                 throw TypeError('"'+value.name+'" is invalid type, expected value type');
             }
             prop && Object.defineProperty(obj, prop, {
-                get: function() { return value },
+                get: function () { return value },
                 set: function (newValue) {
                     if (value === newValue) return;
                     value = newValue;
-                    bindings.forEach(function(it) { it.set(value) });
+                    bindings.forEach(function (it) { it.set(value) });
                 },
                 enumerable: true
             });
@@ -36,7 +36,7 @@
         var attr = filters.shift();
         var attrs = attr.split('.');
 
-        filters.forEach(function(f) {
+        filters.forEach(function (f) {
             if (!w[f] || 'function' !== typeof w[f]) {
                 throw TypeError('"'+f+'" is not exist or function. it must be a function.');
             }
@@ -52,9 +52,9 @@
         return {
             source: source,
             prop: attrs[attrs.length-1],
-            filter: filters.reduce.bind(filters, function(a, f) { return w[f](a) }),
-            get: function() { return this.source[this.prop] },
-            set: function(val) { return this.source[this.prop] = val }
+            filter: filters.reduce.bind(filters, function (a, f) { return w[f](a) }),
+            get: function () { return this.source[this.prop] },
+            set: function (val) { return this.source[this.prop] = val }
         };
     }
 
@@ -93,6 +93,10 @@
                     action.get = function () { return el.checked };
                 }
             } else if ('SELECT'===node.nodeName && node.multiple) {
+                if(!Array.isArray(parsedObj.get())) {
+                    throw TypeError('"'+parsedObject.prop+'" must be array to use a multiple select.');
+                }
+
                 action.set = function (val) {
                     var value = parsedObj.filter(val);
                     Array.prototype.forEach.call(el.options, function(it) {
@@ -537,7 +541,7 @@
         postForm: function (url, formData) {
             formData = this.convertToFormData(formData);
             return this.ajax({url:url+'?'+this.toQueryString(null, true), method:'POST'}, formData)
-                .then(function(res) { return res.json() });
+                .then(function (res) { return res.json() });
         },
         postMultipart: function (url, formData) {
             //TODO xhr.upload.onprogress 추가
@@ -548,7 +552,7 @@
             if (!data || ~data.toString().lastIndexOf('FormData')) return data;
 
             var ret = new FormData();
-            for(var key in data) {
+            for (var key in data) {
                 convertToFormData(ret, key, data[key]);
             }
             return ret;
@@ -740,6 +744,18 @@
             } : function () {
                 return (new Date()).getTime();
             },
+        tick: function(id) {
+            var t = this.now();
+            tickData[id] = tickData[id] || [];
+            tickData[id].push(t);
+
+        },
+        getTick: function(id) {
+            return tickData[id];
+        },
+        resetTick: function(id) {
+            delete tickData[id];
+        },
         changeAttribute: function (dom, name, callback) {
             if(!(callback instanceof Function)) {
                 throw TypeError('callback must be a function');
