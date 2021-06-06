@@ -36,11 +36,7 @@
         var attr = filters.shift();
         var attrs = attr.split('.');
 
-        filters.forEach(function (f) {
-            if (!w[f] || 'function' !== typeof w[f]) {
-                throw TypeError('"'+f+'" is not exist or function. it must be a function.');
-            }
-        });
+        filters.forEach(function (each) { assert.function(w[each], each) });
 
         var source = obj;
         for(var i=0; i < attrs.length-1; ++i) {
@@ -283,9 +279,7 @@
     }
 
     function Next(handler) {
-        if(!(handler instanceof Function)) {
-            throw TypeError('handler must be function');
-        }
+        assert.function(handler, 'handler');
 
         this.fulfillHandlers = [];
         this.rejectHandlers = [];
@@ -295,6 +289,24 @@
             handler(this.onFullfill.bind(this), this.onReject.bind(this));
         } catch(ex) {
             this.onReject(ex);
+        }
+    }
+    
+    function assert(condition, message) {
+        if (!condition) {
+            throw Error(message || 'assertion failed');
+        }
+    }
+    
+    assert.function = function(obj, name) {
+        if (!(obj instanceof Function)) {
+            throw TypeError(`${name || 'it'} must be a function`);
+        }
+    }
+    
+    assert.string = function(obj, name) {
+        if (!(obj instanceof String || 'string' === typeof obj)) {
+            throw TypeError(`${name || 'it'} must be a string`);
         }
     }
 
@@ -378,6 +390,7 @@
     }
 
     return {
+        assert: assert,
         getById: d.getElementById.bind(d),
         find: function (selector, el) {
             return (el || d).querySelector(selector);
@@ -462,7 +475,7 @@
                 var keyword = compare;
                 compare = function(val) { return val === keyword };
             } else {
-                if('function' !== typeof compare)  throw TypeError('compare must be a function');
+                assert.function(compare, 'compare');
             }
             for(var i=0; i<array.length; ++i) {
                 if (compare(array[i])) return i;
@@ -657,7 +670,7 @@
             return str && str.charAt(0).toUpperCase().concat(str.slice(1));
         }),
         watch: function (obj, key, callback) {
-            if(!(callback instanceof Function))  throw TypeError('callback must be a function');
+            assert.function(callback, 'callback');
 
             var value = obj[key];
             Object.defineProperty(obj, key, {
@@ -715,7 +728,7 @@
             });
         },
         iterateNode: function (node, visitor) {
-            if(!(visitor instanceof Function))  throw TypeError('visit must be a function');
+            assert.function(visitor, 'visitor');
 
             if(!node) return;
 
@@ -757,9 +770,8 @@
             delete tickData[id];
         },
         changeAttribute: function (dom, name, callback) {
-            if(!(callback instanceof Function)) {
-                throw TypeError('callback must be a function');
-            }
+            assert.function(callback, 'callback');
+            
             if (!dom) return;
             var observer = new MutationObserver(function(targets) {
                 for(var i=0; i<targets.length; ++i) {
@@ -773,9 +785,8 @@
             observer.observe(dom, {attributes: true});
         },
         changeDom: function (dom, callback) {
-            if(!(callback instanceof Function)) {
-                throw TypeError('callback must be a function');
-            }
+            assert.function(callback, 'callback');
+            
             if (!dom) return;
             var observer = new MutationObserver( function (objects) {
                 for(var i=0; i<objects.length; ++i) {
