@@ -1,139 +1,148 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-	<title>sample2</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<meta name="description" content="" />
-	<meta name="keywords" content="" />
-	<meta name="robots" content="index,follow" />
-</head>
-<body>
-	<h1>Ajax</h1>
+  <head>
+    <title>sample2</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta name="robots" content="index,follow" />
+  </head>
+  <body>
+    <h1>Ajax</h1>
     <select>
-        <option>GET</option>
-        <option>POST</option>
-        <option>PUT</option>
-        <option>DELETE</option>
+      <option>GET</option>
+      <option>POST</option>
+      <option>PUT</option>
+      <option>DELETE</option>
     </select>
     <button onclick="onSimpleCall(event)">SimpleCall</button>
     <button onclick="onJsonCall(event)">JsonCall</button>
     <button onclick="onFormCall(event)">FormCall</button>
-    <script src="../src/otools.js"></script>
-	<script>
-        'use strict';
-		var method = document.querySelector('select');
+    <script src="../dist/otools.js"></script>
+    <script>
+      "use strict";
+      var method = document.querySelector("select");
 
-        function onSimpleCall(ev) {
-            console.log('onSimpleCall begin');
-            o.ajax({
-                method: method.selectedOptions[0].value,
-                url: 'https://my-json-server.typicode.com/typicode/demo/posts'
-            })
-            .then(function(res) {
-                //console.log('>>', res);
-                if ( 200 <= res.status || res.status < 300) return res.json();
-                console.warn('>>', res.status, res.statusText);
-            }).then(function(json) {
-                console.log('>> json:', json);
+      function onSimpleCall(ev) {
+        console.log("onSimpleCall begin");
+        o.ajax({
+          method: method.selectedOptions[0].value,
+          url: "https://my-json-server.typicode.com/typicode/demo/posts",
+        })
+          .then(function (res) {
+            //console.log('>>', res);
+            if (200 <= res.status || res.status < 300) return res.json();
+            console.warn(">>", res.status, res.statusText);
+          })
+          .then(function (json) {
+            console.log(">> json:", json);
+          });
+      }
+
+      function onJsonCall(ev) {
+        console.log("onSimpleCall begin");
+        var methodName = method.selectedOptions[0].value;
+        o[methodName.toLowerCase() + "Json"](
+          "https://my-json-server.typicode.com/typicode/demo/posts",
+          { name: "foo" }
+        )
+          .then(function (res) {
+            console.log(">>", res);
+          })
+          .catch(function (err) {
+            console.error(">>", err);
+          });
+      }
+
+      function onFormCall(ev) {
+        console.log("onFormCall begin");
+        var data = {
+          name: "foo",
+          item: { id: 10, name: "item" },
+          likes: ["coffee", "love"],
+          items: [
+            { type: "cpu", value: "amd" },
+            { type: "mem", value: "1T" },
+          ],
+        };
+
+        o.postForm(
+          "https://my-json-server.typicode.com/typicode/demo/posts",
+          data
+        )
+          .then(function (res) {
+            console.log(">>", res);
+          })
+          .catch(function (err) {
+            console.error(">>", err);
+          });
+      }
+
+      function Next(handler) {
+        if (!(handler instanceof Function)) {
+          throw TypeError("handler must be function");
+        }
+
+        this.fulfillHandlers = [];
+        this.rejectHandlers = [];
+        this.hasResponse = false;
+        this.occureError = false;
+        try {
+          handler(this.onFullfill.bind(this), this.onReject.bind(this));
+        } catch (ex) {
+          this.onReject(ex);
+        }
+      }
+
+      o.mixin(Next, {
+        onFullfill: function (response) {
+          if (this.hasResponse || this.occureError) return;
+          this.hasResponse = true;
+          this.response = response;
+          this.callFullfillHandler(response);
+        },
+        callFullfillHandler: function (response) {
+          try {
+            var res = response;
+            this.fulfillHandlers.forEach(function (each, idx) {
+              res = each(res);
             });
-        }
-
-        function onJsonCall(ev) {
-            console.log('onSimpleCall begin');
-            var methodName = method.selectedOptions[0].value;
-            o[methodName.toLowerCase()+'Json']('https://my-json-server.typicode.com/typicode/demo/posts',  {name:'foo'})
-            .then(function(res) {
-                console.log('>>', res);
-            })
-            .catch(function (err) {
-                console.error('>>', err);
-            })
-        }
-
-        function onFormCall(ev) {
-            console.log('onFormCall begin');
-            var data = {
-                name:'foo',
-                item:{id:10, name:'item'},
-                likes: ['coffee', 'love'],
-                items:[{type:'cpu', value:'amd'}, {type:'mem', value:'1T'}]
-            };
-            
-            o.postForm('https://my-json-server.typicode.com/typicode/demo/posts', data)
-            .then(function(res) {
-                console.log('>>', res);
-            })
-            .catch(function (err) {
-                console.error('>>', err);
-            });
-        }
-
-
-        function Next(handler) {
-            if(!(handler instanceof Function)) {
-                throw TypeError('handler must be function');
-            }
-
-            this.fulfillHandlers = [];
-            this.rejectHandlers = [];
-            this.hasResponse = false;
-            this.occureError = false;
-            try {
-                handler(this.onFullfill.bind(this), this.onReject.bind(this));
-            } catch(ex) {
-                this.onReject(ex);
-            }
-        }
-
-        o.mixin(Next, {
-            onFullfill: function (response)  {
-                if (this.hasResponse || this.occureError) return;
-                this.hasResponse = true;
-                this.response = response;
-                this.callFullfillHandler(response);
-            },
-            callFullfillHandler: function(response) {
-                try {
-                    var res = response;
-                    this.fulfillHandlers.forEach(function(each, idx) {
-                        res = each(res);
-                    });
-                } catch (ex) {
-                    this.onReject(ex);
-                }
-            },
-            then: function (handler) {
-                this.fulfillHandlers.push(handler);
-                if (this.hasResponse) {
-                    var response = this.response;
-                    this.response = null;
-                    this.callFullfillHandler(response);
-                }
-                return  this;
-            },
-            onReject: function(error) { 
-                if (this.occureError) return;
-                this.occureError = true;
-                this.error = error;
-                this.callRejectHandlers(error);
-            },
-            callRejectHandlers: function (error) {
-                var err = error;
-                this.rejectHandlers.forEach(function(each, idx) {
-                    err = each(err);
-                });
-            },
-            catch: function (handler) {
-                this.rejectHandlers.push(handler);
-                if (this.occureError) {
-                    var error = this.error;
-                    this.error = null;
-                    this.callRejectHandlers(error);
-                }
-                return this;
-            }
-        });
-        /*
+          } catch (ex) {
+            this.onReject(ex);
+          }
+        },
+        then: function (handler) {
+          this.fulfillHandlers.push(handler);
+          if (this.hasResponse) {
+            var response = this.response;
+            this.response = null;
+            this.callFullfillHandler(response);
+          }
+          return this;
+        },
+        onReject: function (error) {
+          if (this.occureError) return;
+          this.occureError = true;
+          this.error = error;
+          this.callRejectHandlers(error);
+        },
+        callRejectHandlers: function (error) {
+          var err = error;
+          this.rejectHandlers.forEach(function (each, idx) {
+            err = each(err);
+          });
+        },
+        catch: function (handler) {
+          this.rejectHandlers.push(handler);
+          if (this.occureError) {
+            var error = this.error;
+            this.error = null;
+            this.callRejectHandlers(error);
+          }
+          return this;
+        },
+      });
+      /*
         var n1 = new Next(function(resolve, reject) {
             setTimeout(_=>{
                 resolve('hello');
@@ -148,7 +157,7 @@
             console.log('1> catch:', err);
         });
         */
-        /*
+      /*
         var n2 = new Next(function(resolve, reject) {
             reject('world');
         });
@@ -159,7 +168,7 @@
             console.log('2> catch:', err);
         });
         */
-        /*
+      /*
         var n3 = new Next(function(resolve, reject) {
             throw Error('wow!');
         }).then(function (res) {
@@ -168,7 +177,7 @@
             console.log('3> catch:', err);
         });
         */
-/*
+      /*
         new Promise(function(resolve, reject) {
             //resolve();
             reject('world1');
@@ -185,5 +194,5 @@
         })
         */
     </script>
-</body>
+  </body>
 </html>
