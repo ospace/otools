@@ -55,22 +55,18 @@ function iterateNode(node, visitor) {
 
   const visited = now();
   const waits = [node.firstChild];
-  let node;
+  let el;
   while (0 < waits.length) {
-    while ((node = waits[waits.length - 1])) {
-      if (node._o_visited === visited) {
+    while ((el = waits[waits.length - 1])) {
+      if (el._o_visited === visited) {
         throw Error(
-          "loopping in the dom tree: " +
-            node.localname +
-            "(" +
-            node.className +
-            ")"
+          "loopping in the dom tree: " + el.localname + "(" + el.className + ")"
         );
       }
-      node._o_visited === visited;
-      waits[waits.length - 1] = node.nextSibling;
-      if (false === visitor(node)) break;
-      node.firstChild && waits.push(node.firstChild);
+      el._o_visited === visited;
+      waits[waits.length - 1] = el.nextSibling;
+      if (false === visitor(el)) break;
+      el.firstChild && waits.push(el.firstChild);
     }
     waits.pop();
   }
