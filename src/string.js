@@ -85,3 +85,32 @@ const reEmail = /^([0-9a-zA-Z_\.-]+)@([0-9a-zA-Z_-]+)(\.[0-9a-zA-Z_-]+){1,2}$/;
 export function isEmail(str) {
   return reEmail.test(str);
 }
+
+function pixelOf(el, str) {
+  el.innerHTML = str;
+  return el.offsetWidth;
+}
+
+export function truncatePx(str, px, opts) {
+  const span = document.createElement("span");
+  document.body.appendChild(span);
+  try {
+    opts = opts || {};
+    span.className = null;
+    if ("string" === typeof opts) {
+      span.className = opts;
+    } else {
+      Object.assign(span.style, opts);
+    }
+    span.style.visibility = "hidden";
+    span.style.padding = "0px";
+    let p = str.length;
+    while (0 < p && px < pixelOf(span, str)) {
+      str = str.substring(0, --p) + "…";
+    }
+  } finally {
+    document.body.removeChild(span);
+  }
+
+  return str;
+}

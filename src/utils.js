@@ -245,3 +245,37 @@ export function round(value, decimal) {
 export function toArray(obj) {
   return Array.prototype.slice.call(obj);
 }
+
+// 싱글터치(멀티터치/터치스크롤 미지원) 이벤트를 마우스 이벤트로 바인딩해서 처리
+function onTouchstart(ev) {
+  ev.preventDefault();
+  const { target, touches } = ev;
+  const { clientX, clientY } = touches[0];
+
+  target.dispatchEvent(new MouseEvent("mousedown", { clientX, clientY }));
+}
+
+function onTouchmove({ target, touches }) {
+  const { clientX, clientY } = touches[0];
+  target.dispatchEvent(new MouseEvent("mousemove", { clientX, clientY }));
+}
+
+function onTouchup({ target }) {
+  target.dispatchEvent(new MouseEvent("mouseup"));
+}
+
+export function bindTouch(el) {
+  if (!el) return;
+  console.assert(!!el.addEventListener, "el must be addEventListener");
+  el.addEventListener("touchstart", onTouchstart);
+  el.addEventListener("touchmove", onTouchmove);
+  el.addEventListener("touchend", onTouchup);
+}
+
+export function unbindTouch(el) {
+  if (!el) return;
+  console.assert(!!el.removeEventListener, "el must be removeEventListener");
+  el.removeEventListener("touchstart", onTouchstart);
+  el.removeEventListener("touchmove", onTouchmove);
+  el.removeEventListener("touchend", onTouchup);
+}
