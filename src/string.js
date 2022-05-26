@@ -86,7 +86,7 @@ export function isEmail(str) {
   return reEmail.test(str);
 }
 
-function pixelOf(el, str) {
+export function pixelOf(el, str) {
   el.innerHTML = str;
   return el.offsetWidth;
 }

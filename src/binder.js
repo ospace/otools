@@ -114,7 +114,7 @@ function onInputNode(obj, node) {
       }
 
       action.set = function (val) {
-        const value = parsedObj.filter(val);
+        let value = parsedObj.filter(val);
         Array.prototype.forEach.call(el.options, function (it) {
           it.selected = !!~value.indexOf(it.value);
         });
@@ -163,7 +163,7 @@ function onForNode(obj, node) {
   parent.removeChild(node);
 
   const props = valFor.split(".");
-  const source = obj;
+  let source = obj;
   for (let i = 0; i < props.length; ++i) {
     source = source[props[i]];
   }
@@ -228,9 +228,9 @@ function onForNode(obj, node) {
 
 function binder(obj, prop) {
   obj._o_ || Object.defineProperty(obj, "_o_", { value: {}, writable: true });
-  const bindings = obj._o_[prop];
+  let bindings = obj._o_[prop];
   if (!bindings) {
-    const value = obj[prop];
+    let value = obj[prop];
     obj._o_[prop] = bindings = [];
     if (value instanceof Function) {
       throw TypeError(
@@ -301,7 +301,7 @@ function parseObjectKey(obj, prop) {
     assert.function(w[each], each);
   });
 
-  const source = obj;
+  let source = obj;
   for (let i = 0; i < attrs.length - 1; ++i) {
     source = source[attrs[i]];
   }

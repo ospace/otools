@@ -1,13 +1,13 @@
 import { assign } from "./utils";
 
-export function convertToFormData(formData, key, value) {
+export function appendFormData(formData, key, value) {
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; ++i) {
-      convertToFormData(formData, key + "[" + i + "]", value[i]);
+      appendFormData(formData, key + "[" + i + "]", value[i]);
     }
   } else if ("object" === typeof value) {
     for (let k in value) {
-      convertToFormData(formData, key + "." + k, value[k]);
+      appendFormData(formData, key + "." + k, value[k]);
     }
   } else {
     formData.append(key, value);

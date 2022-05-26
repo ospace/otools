@@ -166,9 +166,8 @@
         var idx = data.items.findIndex(function (it) {
           return it.id == id;
         });
-        if (!(idx && 0 <= idx)) {
-          alert("item not found: " + id + "->" + idx);
-          return;
+        if (!~idx) {
+          return alert("item not found: " + id + "->" + idx);
         }
 
         data.items.splice(idx, 1);

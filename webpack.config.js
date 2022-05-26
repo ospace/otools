@@ -2,10 +2,15 @@ const path = require("path");
 const TerserPlugin = require("terser-webpack-plugin");
 
 module.exports = {
+  mode: "production",
   entry: {
     main: "./src/index.js",
   },
   output: {
+    library: {
+      name: "o",
+      type: "umd",
+    },
     filename: "otools.js",
     path: path.resolve("./dist"),
   },
