@@ -50,8 +50,9 @@ __webpack_require__.r(__webpack_exports__);
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
   "ajax": () => (/* reexport */ ajax),
+  "ajaxJson": () => (/* reexport */ ajaxJson),
+  "appendFormData": () => (/* reexport */ appendFormData),
   "arrayIndex": () => (/* reexport */ arrayIndex),
-  "assert": () => (/* reexport */ assert_assert),
   "assign": () => (/* reexport */ utils_assign),
   "bindOf": () => (/* reexport */ bindOf),
   "bindTouch": () => (/* reexport */ bindTouch),
@@ -59,6 +60,7 @@ __webpack_require__.d(__webpack_exports__, {
   "camelize": () => (/* reexport */ camelize),
   "capitalize": () => (/* reexport */ capitalize),
   "convertToFormData": () => (/* binding */ convertToFormData),
+  "createTag": () => (/* reexport */ createTag),
   "decodeHTML": () => (/* reexport */ decodeHTML),
   "deleteJson": () => (/* binding */ deleteJson),
   "dom2str": () => (/* reexport */ dom2str),
@@ -80,10 +82,14 @@ __webpack_require__.d(__webpack_exports__, {
   "isEmail": () => (/* reexport */ isEmail),
   "isNumber": () => (/* reexport */ isNumber),
   "mixin": () => (/* reexport */ mixin),
+  "mixinObject": () => (/* reexport */ mixinObject),
+  "newFunction": () => (/* reexport */ newFunction),
+  "now": () => (/* reexport */ now),
   "off": () => (/* reexport */ off),
   "on": () => (/* reexport */ on),
   "once": () => (/* reexport */ once),
   "parseQueryString": () => (/* reexport */ parseQueryString),
+  "pixelOf": () => (/* reexport */ pixelOf),
   "postForm": () => (/* binding */ postForm),
   "postJson": () => (/* binding */ postJson),
   "postMultipart": () => (/* binding */ postMultipart),
@@ -107,7 +113,8 @@ __webpack_require__.d(__webpack_exports__, {
   "unbindTouch": () => (/* reexport */ unbindTouch),
   "watch": () => (/* reexport */ watch),
   "watchAttribute": () => (/* reexport */ watchAttribute),
-  "watchDom": () => (/* reexport */ watchDom)
+  "watchDom": () => (/* reexport */ watchDom),
+  "wrapper": () => (/* reexport */ wrapper)
 });
 
 ;// CONCATENATED MODULE: ./src/assert.js
@@ -129,8 +136,6 @@ assert_assert.string = function (obj, name) {
   }
 };
 ;// CONCATENATED MODULE: ./src/next.js
-function _readOnlyError(name) { throw new TypeError("\"" + name + "\" is read-only"); }
-
 
 
 function Next(handler) {
@@ -157,7 +162,7 @@ mixin(Next, {
     try {
       var res = response;
       this.fulfillHandlers.forEach(function (each, idx) {
-        each(res), _readOnlyError("res");
+        res = each(res);
       });
     } catch (ex) {
       this.onReject(ex);
@@ -183,7 +188,7 @@ mixin(Next, {
   callRejectHandlers: function callRejectHandlers(error) {
     var err = error;
     this.rejectHandlers.forEach(function (each, idx) {
-      each(err), _readOnlyError("err");
+      err = each(err);
     });
   },
   "catch": function _catch(handler) {
@@ -198,8 +203,113 @@ mixin(Next, {
     return this;
   }
 });
+;// CONCATENATED MODULE: ./src/string.js
+
+function decodeHTML(str) {
+  return str && str.replace(/%lt;/g, "<").replace(/&gt;/g, ">");
+}
+function formatNumber(num) {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+var units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+function formatBytes(value, digits) {
+  if (!value) return "0 B";
+  var exp = Math.floor(Math.log(value) / Math.log(1024));
+  return (value / Math.pow(1024, exp)).toFixed(digits).concat(" ").concat(units[exp]);
+}
+function toQueryString(obj, enableT) {
+  var data = [];
+
+  for (var key in obj) {
+    data.push(key.concat("=").concat(encodeURIComponent(obj[key])));
+  }
+
+  if (enableT) data.push("t=".concat(new Date().getTime()));
+  return data.join("&");
+}
+function parseQueryString(str) {
+  var ret = {};
+  var tokens = str.split("&");
+
+  for (var i = 0; i < tokens.length; ++i) {
+    var items = tokens[i].split("=");
+    ret[item[0]] = item[1] && decodeURIComponent(item[1]);
+  }
+
+  return ret;
+}
+var camelizeRE = /-(\w)/g;
+var camelize = cached(function (str) {
+  return str && str.replace(camelizeRE, function (_, c) {
+    return c ? c.toUpperCase() : "";
+  });
+});
+var hyphenateRE = /\B([A-Z])/g;
+var hyphenate = cached(function (str) {
+  return str && str.replace(hyphenateRE, "-$1").toLowerCase();
+});
+var capitalize = cached(function (str) {
+  return str && str.charAt(0).toUpperCase().concat(str.slice(1));
+});
+function sprint(fmt) {
+  var args = arguments;
+  return fmt.replace(/{(\d+)}/g, function (match, value) {
+    return void 0 !== args[value] ? args[value] : match;
+  });
+}
+function replaceAll(str, context) {
+  if ("string" === typeof contenxt) {
+    return str.replace(context);
+  }
+
+  if (content instanceof Object) {
+    return str.replace(/\{(\w+)\}/g, function (match, key) {
+      return context.hasOwnProperty(key) ? context[key] : match;
+    });
+  }
+}
+var reNumber = /^[0-9]+$/;
+function isNumber(str) {
+  return reNumber.test(str);
+}
+var reEmail = /^([0-9a-zA-Z_\.-]+)@([0-9a-zA-Z_-]+)(\.[0-9a-zA-Z_-]+){1,2}$/;
+function isEmail(str) {
+  return reEmail.test(str);
+}
+function pixelOf(el, str) {
+  el.innerHTML = str;
+  return el.offsetWidth;
+}
+function truncatePx(str, px, opts) {
+  var span = document.createElement("span");
+  document.body.appendChild(span);
+
+  try {
+    opts = opts || {};
+    span.className = null;
+
+    if ("string" === typeof opts) {
+      span.className = opts;
+    } else {
+      Object.assign(span.style, opts);
+    }
+
+    span.style.visibility = "hidden";
+    span.style.padding = "0px";
+    var p = str.length;
+
+    while (0 < p && px < pixelOf(span, str)) {
+      str = str.substring(0, --p) + "…";
+    }
+  } finally {
+    document.body.removeChild(span);
+  }
+
+  return str;
+}
 ;// CONCATENATED MODULE: ./src/utils.js
-function utils_readOnlyError(name) { throw new TypeError("\"" + name + "\" is read-only"); }
+function _readOnlyError(name) { throw new TypeError("\"" + name + "\" is read-only"); }
+
 
 
 var w = window;
@@ -311,18 +421,18 @@ function ajaxJson(opts, data) {
   opts = utils_assign({
     method: "GET"
   }, opts, true);
-  opts.url = opts.url + "?" + this.toQueryString(queryData, true);
+  opts.url = opts.url + "?" + toQueryString(queryData, true);
   opts.headers = utils_assign(opts.headers || {}, {
     "Content-Type": "application/json;charset=UTF-8"
   });
   var queryData = null;
 
   if (data && ("GET" === opts.method || "DELETE" === opts.method)) {
-    data, utils_readOnlyError("queryData");
+    queryData = data;
     data = null;
   }
 
-  return this.ajax(opts, data && JSON.stringify(data)).then(function (res) {
+  return ajax(opts, data && JSON.stringify(data)).then(function (res) {
     return res.json();
   });
 }
@@ -346,7 +456,7 @@ function watch(obj, key, callback) {
   var value = obj[key];
   Object.defineProperty(obj, key, {
     set: function set(val) {
-      val, utils_readOnlyError("value");
+      val, _readOnlyError("value");
       callback(val);
     },
     get: function get() {
@@ -481,110 +591,6 @@ function unbindTouch(el) {
   el.removeEventListener("touchstart", onTouchstart);
   el.removeEventListener("touchmove", onTouchmove);
   el.removeEventListener("touchend", onTouchup);
-}
-;// CONCATENATED MODULE: ./src/string.js
-
-function decodeHTML(str) {
-  return str && str.replace(/%lt;/g, "<").replace(/&gt;/g, ">");
-}
-function formatNumber(num) {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-var units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-function formatBytes(value, digits) {
-  if (!value) return "0 B";
-  var exp = Math.floor(Math.log(value) / Math.log(1024));
-  return (value / Math.pow(1024, exp)).toFixed(digits).concat(" ").concat(units[exp]);
-}
-function toQueryString(obj, enableT) {
-  var data = [];
-
-  for (var key in obj) {
-    data.push(key.concat("=").concat(encodeURIComponent(obj[key])));
-  }
-
-  if (enableT) data.push("t=".concat(new Date().getTime()));
-  return data.join("&");
-}
-function parseQueryString(str) {
-  var ret = {};
-  var tokens = str.split("&");
-
-  for (var i = 0; i < tokens.length; ++i) {
-    var items = tokens[i].split("=");
-    ret[item[0]] = item[1] && decodeURIComponent(item[1]);
-  }
-
-  return ret;
-}
-var camelizeRE = /-(\w)/g;
-var camelize = cached(function (str) {
-  return str && str.replace(camelizeRE, function (_, c) {
-    return c ? c.toUpperCase() : "";
-  });
-});
-var hyphenateRE = /\B([A-Z])/g;
-var hyphenate = cached(function (str) {
-  return str && str.replace(hyphenateRE, "-$1").toLowerCase();
-});
-var capitalize = cached(function (str) {
-  return str && str.charAt(0).toUpperCase().concat(str.slice(1));
-});
-function sprint(fmt) {
-  var args = arguments;
-  return fmt.replace(/{(\d+)}/g, function (match, value) {
-    return void 0 !== args[value] ? args[value] : match;
-  });
-}
-function replaceAll(str, context) {
-  if ("string" === typeof contenxt) {
-    return str.replace(context);
-  }
-
-  if (content instanceof Object) {
-    return str.replace(/\{(\w+)\}/g, function (match, key) {
-      return context.hasOwnProperty(key) ? context[key] : match;
-    });
-  }
-}
-var reNumber = /^[0-9]+$/;
-function isNumber(str) {
-  return reNumber.test(str);
-}
-var reEmail = /^([0-9a-zA-Z_\.-]+)@([0-9a-zA-Z_-]+)(\.[0-9a-zA-Z_-]+){1,2}$/;
-function isEmail(str) {
-  return reEmail.test(str);
-}
-function pixelOf(el, str) {
-  el.innerHTML = str;
-  return el.offsetWidth;
-}
-function truncatePx(str, px, opts) {
-  var span = document.createElement("span");
-  document.body.appendChild(span);
-
-  try {
-    opts = opts || {};
-    span.className = null;
-
-    if ("string" === typeof opts) {
-      span.className = opts;
-    } else {
-      Object.assign(span.style, opts);
-    }
-
-    span.style.visibility = "hidden";
-    span.style.padding = "0px";
-    var p = str.length;
-
-    while (0 < p && px < pixelOf(span, str)) {
-      str = str.substring(0, --p) + "…";
-    }
-  } finally {
-    document.body.removeChild(span);
-  }
-
-  return str;
 }
 ;// CONCATENATED MODULE: ./src/binder.js
 
@@ -1130,6 +1136,18 @@ function createTag(name, attributes) {
   return obj;
 }
 ;// CONCATENATED MODULE: ./src/index.js
+// import {
+//   mixin,
+//   assign,
+// } from "./utils";
+// import {
+//   appendFormData,
+//   findParent,
+//   findAllByTag,
+// } from "./dom";
+
+
+
 
 
 
@@ -1137,36 +1155,31 @@ function createTag(name, attributes) {
 
 var src_d = document;
 var getById = src_d.getElementById.bind(src_d);
-
-var getJson = function getJson(url, data) {
+function getJson(url, data) {
   return ajaxJson({
     url: url,
     method: "GET"
   }, data);
-};
-
-var postJson = function postJson(url, data) {
+}
+function postJson(url, data) {
   return ajaxJson({
     url: url,
     method: "POST"
   }, data);
-};
-
-var putJson = function putJson(url, data) {
+}
+function putJson(url, data) {
   return ajaxJson({
     url: url,
     method: "PUT"
   }, data);
-};
-
-var deleteJson = function deleteJson(url, data) {
+}
+function deleteJson(url, data) {
   return ajaxJson({
     url: url,
     method: "DELETE"
   }, data);
-};
-
-var postForm = function postForm(url, formData) {
+}
+function postForm(url, formData) {
   formData = convertToFormData(formData);
   return ajax({
     url: url + "?" + toQueryString(null, true),
@@ -1174,21 +1187,19 @@ var postForm = function postForm(url, formData) {
   }, formData).then(function (res) {
     return res.json();
   });
-};
-
-var postMultipart = function postMultipart(url, formData) {
+}
+function postMultipart(url, formData) {
   //TODO xhr.upload.onprogress 추가
   formData = convertToFormData(formData);
-  return this.ajax({
+  return ajax({
     url: url,
     method: "POST",
     headers: {
       "Content-Type": "multipart/form-data"
     }
   }, formData);
-};
-
-var convertToFormData = function convertToFormData(data) {
+}
+function convertToFormData(data) {
   if (!data || ~data.toString().lastIndexOf("FormData")) {
     return data;
   }
@@ -1200,23 +1211,30 @@ var convertToFormData = function convertToFormData(data) {
   }
 
   return ret;
-};
-
-var evalInContext = function evalInContext(str, ctx) {
+}
+function evalInContext(str, ctx) {
   return newFunction(str).call(ctx);
-};
-
+}
 var src_tickData = {};
-
-var getTick = function getTick(id) {
+function getTick(id) {
   return src_tickData[id];
-};
-
-var resetTick = function resetTick(id) {
+}
+function resetTick(id) {
   delete src_tickData[id];
-};
-
- //})();
+} // export const {
+//   decodeHTML,
+//   formatNumber,
+//   formatBytes,
+// } = str;
+//   /*
+//         sub는 base를 상속하도록 연결함. sub 생성자에서 base을 생성자를 명시적으로 호출 필요.
+//         권장하는 방식으로 OOP에서도 부모 생성자를 명시적으로 호출이 필요함.
+//         function P(opts) {}
+//         function C(opts) {
+//             P.call(this, opts);
+//         }
+//         extend(C, P);
+//        */
 /******/ 	return __webpack_exports__;
 /******/ })()
 ;

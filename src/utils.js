@@ -1,4 +1,5 @@
 import Next from "./next";
+import { toQueryString } from "./string";
 
 const w = window;
 const MutationObserver = w.MutationObserver || w.WebKitMutationObserver;
@@ -72,7 +73,7 @@ export function ajax(opts, data) {
 
       xhr.onreadystatechange = function () {
         if (xhr.readyState === XMLHttpRequest.DONE) {
-          const res = new HttpResponse(xhr);
+          let res = new HttpResponse(xhr);
           mixinHttpResponse.call(res);
           resolve(res);
         }
@@ -116,18 +117,18 @@ function HttpResponse(xhr) {
 
 export function ajaxJson(opts, data) {
   opts = assign({ method: "GET" }, opts, true);
-  opts.url = opts.url + "?" + this.toQueryString(queryData, true);
+  opts.url = opts.url + "?" + toQueryString(queryData, true);
   opts.headers = assign(opts.headers || {}, {
     "Content-Type": "application/json;charset=UTF-8",
   });
 
-  const queryData = null;
+  let queryData = null;
   if (data && ("GET" === opts.method || "DELETE" === opts.method)) {
     queryData = data;
     data = null;
   }
 
-  return this.ajax(opts, data && JSON.stringify(data)).then(function (res) {
+  return ajax(opts, data && JSON.stringify(data)).then(function (res) {
     return res.json();
   });
 }
@@ -136,6 +137,13 @@ export function newFunction(str) {
   return new Function("with(this){return " + str + "}");
 }
 
+// sub는 base를 상속하도록 연결함. sub 생성자에서 base을 생성자를 명시적으로 호출 필요.
+// 권장하는 방식으로 OOP에서도 부모 생성자를 명시적으로 호출이 필요함.
+// function P(opts) {}
+// function C(opts) {
+//     P.call(this, opts);
+// }
+// extend(C, P);
 export function extend(sub, base) {
   sub.prototype = Object.assign(Object.create(base.prototype), sub.prototype);
   sub.prototype.constructor = sub;

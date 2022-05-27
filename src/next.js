@@ -24,7 +24,7 @@ mixin(Next, {
   },
   callFullfillHandler: function (response) {
     try {
-      const res = response;
+      let res = response;
       this.fulfillHandlers.forEach(function (each, idx) {
         res = each(res);
       });
@@ -48,7 +48,7 @@ mixin(Next, {
     this.callRejectHandlers(error);
   },
   callRejectHandlers: function (error) {
-    const err = error;
+    let err = error;
     this.rejectHandlers.forEach(function (each, idx) {
       err = each(err);
     });
