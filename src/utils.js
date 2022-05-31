@@ -287,3 +287,11 @@ export function unbindTouch(el) {
   el.removeEventListener("touchmove", onTouchmove);
   el.removeEventListener("touchend", onTouchup);
 }
+
+// 안드로이드 offset 위치 변환
+export function clientToOffset(target, clientX, clientY) {
+  return {
+    offsetX: clientX - target.left,
+    offsetY: clientY - target.top,
+  };
+}
