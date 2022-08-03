@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "open tools",
   "scripts": {
-    "build": "webpack --mode production",
-    "build:dev": "webpack --mode development"
+    "build": "webpack --env prod",
+    "build:dev": "webpack --env dev"
   },
   "keywords": [],
   "author": "",
