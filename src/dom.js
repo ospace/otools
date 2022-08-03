@@ -217,6 +217,11 @@ export function createTag(name, attributes) {
   return obj;
 }
 
+function EventMixin() {
+  this.on = this.addEventListener;
+  this.off = this.removeEventListener;
+}
+
 export function Resizable(el) {
   this.el = el;
   this.style = Object.assign(el.style, {
