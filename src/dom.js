@@ -216,3 +216,43 @@ export function createTag(name, attributes) {
   EventMixin.call(obj);
   return obj;
 }
+
+export function Resizable(el) {
+  this.el = el;
+  this.style = Object.assign(el.style, {
+    position: "absolute",
+    "pointer-events": "none",
+  });
+}
+
+Object.assign(Resizable.prototype, {
+  move(x, y) {
+    this.style.top = y + "px";
+    this.style.left = x + "px";
+    return this;
+  },
+  resize(w, h) {
+    this.style.width = w + "px";
+    this.style.height = h + "px";
+    return this;
+  },
+  scale(val) {
+    const { width, height } = this.el.getBoundingClientRect();
+    this.resize(width * val, height * val);
+    return this;
+  },
+});
+
+export function dispatchMouse(target) {
+  [
+    ["touchstart", "mousedown"],
+    ["touchmove", "mousemove"],
+    ["touchend", "mouseup"],
+  ].forEach((it) => {
+    target.addEventListener(it[0], function (ev) {
+      "touchstart" === it[0] && ev.preventDefault();
+      const touch = ev.touches ? ev.touches[0] : null;
+      ev.target.dispatchEvent(new MouseEvent(it[1], touch));
+    });
+  });
+}

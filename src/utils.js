@@ -295,3 +295,34 @@ export function clientToOffset(target, clientX, clientY) {
     offsetY: clientY - target.top,
   };
 }
+
+export function benchmark(fn, timeoutMsec) {
+  const to = Date.now() + (timeoutMsec || 1000);
+  let count = 0;
+  while (to > Date.now()) {
+    let r = fn();
+    ++count;
+  }
+  const end = Date.now();
+  const runtime = (end - to) / 1000.0 + 1.0;
+  const speed = count / runtime;
+
+  console.log(
+    `runtime: ${runtime} sec, count: ${count} ea, speed: ${speed} ea/s`
+  );
+
+  return { runtime, count, speed };
+}
+
+export function loadImage(src) {
+  return new Promise(function (resolve, reject) {
+    let image = new Image();
+    image.onload = function () {
+      resolve(image);
+    };
+    image.onerror = function () {
+      reject({ message: `loading image failed: ${this.src}` });
+    };
+    image.src = src;
+  });
+}

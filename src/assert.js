@@ -1,4 +1,4 @@
-export default function assert(condition, message) {
+export function assert(condition, message) {
   if (!condition) {
     throw Error(message || "assertion failed");
   }
@@ -15,3 +15,5 @@ assert.string = function (obj, name) {
     throw TypeError(`${name || "it"} must be a string`);
   }
 };
+
+export default assert;

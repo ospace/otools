@@ -15,11 +15,13 @@
 //   formatBytes,
 // } = str;
 
+export * from "./data";
 export * from "./utils";
 export * from "./string";
 export * from "./binder";
 export * from "./dom";
 export * from "./assert";
+export * from "./console";
 
 import { newFunction, ajax, ajaxJson } from "./utils";
 import { toQueryString } from "./string";

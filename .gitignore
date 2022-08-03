@@ -105,3 +105,6 @@ typings/
 
 # TernJS port file
 .tern-port
+
+# package lock file
+package-lock.json
