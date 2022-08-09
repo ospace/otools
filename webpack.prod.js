@@ -36,9 +36,9 @@ module.exports = {
       new TerserPlugin({
         parallel: true,
         terserOptions: {
-          compress: {
-            drop_console: true,
-          },
+          // compress: {
+          //   drop_console: true,
+          // },
         },
       }),
     ],
