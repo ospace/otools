@@ -129,6 +129,9 @@ Object.assign(ConsoleWindow.prototype, {
             if (it instanceof HTMLElement) {
               return it.outerHTML;
             }
+            if (it instanceof Set) {
+              it = [...it];
+            }
             return JSON.stringify(it);
           } else {
             return it;
