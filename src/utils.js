@@ -1,4 +1,6 @@
 import Next from "./next";
+import assert from "./assert";
+
 import { toQueryString } from "./string";
 
 const w = window;
