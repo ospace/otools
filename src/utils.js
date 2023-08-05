@@ -163,7 +163,7 @@ export function extendDefault(sub, base) {
 export function watch(obj, key, callback) {
   assert.function(callback, "callback");
 
-  const value = obj[key];
+  let value = obj[key];
   Object.defineProperty(obj, key, {
     set: function (val) {
       value = val;

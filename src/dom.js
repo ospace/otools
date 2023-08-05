@@ -261,3 +261,27 @@ export function dispatchMouse(target) {
     });
   });
 }
+
+export function activeHide() {
+  const hiddenElements = new Set();
+  const observer = new MutationObserver(function (ev) {
+    ev.forEach(({ target }) => {
+      if (target.classList && target.classList.contains("hide")) {
+        target.style.display = "none";
+        hiddenElements.add(target);
+      } else {
+        if (hiddenElements.has(target)) {
+          hiddenElements.delete(target);
+          target.style.display = null;
+        }
+      }
+    });
+  });
+  observer.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"],
+    childList: false,
+    characterData: false,
+    subtree: true,
+  });
+}
