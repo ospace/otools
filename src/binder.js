@@ -77,6 +77,7 @@ extend(OBinder, EventBus, {
     for (const attr of node.attributes) {
       const name = SHORT_WORDS.getWord(attr.name);
       if (name.startsWith("o-")) {
+        node.removeAttribute(name);
         const [cmd, option] = name.split(":");
         queue.push([
           cmd,
