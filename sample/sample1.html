@@ -80,26 +80,31 @@
           <button type="button" onclick="onAdd(event)">ADD</button>
         </div>
       </div>
-      <table id="r13" cellspacing="0" width="100%">
-        <colgroup>
-          <col width="5%" />
-          <col width="40%" />
-          <col width="40%" />
-          <col width="15%" />
-        </colgroup>
-        <tr>
-          <th>ID</th>
-          <th>Message</th>
-          <th>Input</th>
-          <th>Action</th>
-        </tr>
-        <tr o-for="items">
-          <td style="text-align: center">{{id}}</td>
-          <td>{{message}}</td>
-          <td><input type="text" o-model="message" /></td>
-          <td><button type="button" data-id="{{id}}">DEL</button></td>
-        </tr>
-      </table>
+      <label for="r13">Hide:</label
+      ><input type="checkbox" o-model="hide" value="" />
+
+      <div o-if="!hide">
+        <table id="r14" cellspacing="0" width="100%">
+          <colgroup>
+            <col width="5%" />
+            <col width="40%" />
+            <col width="40%" />
+            <col width="15%" />
+          </colgroup>
+          <tr>
+            <th>ID</th>
+            <th>Message</th>
+            <th>Input</th>
+            <th>Action</th>
+          </tr>
+          <tr o-for="items">
+            <td style="text-align: center">{{id}}</td>
+            <td>{{message}}</td>
+            <td><input type="text" o-model="message" /></td>
+            <td><button type="button" data-id="{{id}}">DEL</button></td>
+          </tr>
+        </table>
+      </div>
     </div>
     <script src="../dist/otools.js"></script>
     <script>
@@ -118,6 +123,7 @@
         useYn: function () {
           return this.selected === "true" ? true : false;
         },
+        hide: false,
         items: [
           { message: "foo", id: 1 },
           { message: "bar", id: 2 },

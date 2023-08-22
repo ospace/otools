@@ -59,6 +59,11 @@ extend(OBinder, EventBus, {
     });
     fire = this.fire;
 
+    this.render(obj, elem);
+
+    return obj;
+  },
+  render(obj, elem) {
     const errs = [];
     iterateNode(elem, (node) => {
       if (1 === node.nodeType) {
@@ -67,10 +72,7 @@ extend(OBinder, EventBus, {
         this.bindTextNode(obj, node, errs);
       }
     });
-
     errs.forEach((e) => console.warn("ERROR:", e));
-
-    return obj;
   },
   bindElementNode(node, obj, errs) {
     let queue = [];
@@ -86,18 +88,18 @@ extend(OBinder, EventBus, {
       } else {
         this.bindNodeValue(node, name, obj, attr.value, errs);
       }
-    }
 
-    while (queue.length) {
-      const [cmdId, info] = queue.shift();
-      if (cmdId) {
-        const cmd = directive.get(cmdId);
-        if (!cmd) {
-          return console.warn(`not supported directive: ${cmdId}`);
+      while (queue.length) {
+        const [cmdId, info] = queue.shift();
+        if (cmdId) {
+          const cmd = directive.get(cmdId);
+          if (!cmd) {
+            return console.warn(`not supported directive: ${cmdId}`);
+          }
+          cmd.binded(node, obj, info);
+        } else {
+          this.bindNodeValue(node, info.option, obj, info.value, errs);
         }
-        cmd.binded(node, obj, info);
-      } else {
-        this.bindNodeValue(node, info.option, obj, info.value, errs);
       }
     }
   },
@@ -365,6 +367,35 @@ directive.on("for", {
     binder.$on("." + mapping.keys[0], ({ prop, type }) => {
       bus.fire(type, { prop });
     });
+  },
+});
+
+directive.on("if", {
+  binded(el, obj, { option, value, queue, binder }) {
+    const parent = el.parentElement;
+    let content = el;
+    let sibling = content.nextSibling;
+    parent.removeChild(content);
+
+    let mapping = parseContent(value);
+    if (!mapping) return;
+
+    let isRendered = false;
+    function setIf() {
+      if (mapping.get.call(obj)) {
+        parent.insertBefore(content, sibling);
+        if (!isRendered) {
+          binder.render(obj, content);
+          isRendered = true;
+        }
+      } else {
+        parent.removeChild(content);
+      }
+    }
+
+    setTimeout(() => setIf(), 0);
+
+    binder.$on("." + mapping.keys[0], (_) => setIf());
   },
 });
 
