@@ -1,4 +1,5 @@
-import { assign } from "./utils";
+import { assign, now } from "./utils";
+import assert from "./assert";
 
 export function appendFormData(formData, key, value) {
   if (Array.isArray(value)) {
@@ -284,4 +285,28 @@ export function activeHide() {
     characterData: false,
     subtree: true,
   });
+}
+
+export function iterateNode(node, visitor) {
+  assert.function(visitor, "visitor");
+
+  if (!node) return;
+
+  const visited = now();
+  const waits = [node];
+  let el;
+  while (0 < waits.length) {
+    el = waits.shift();
+    if (!document.body.contains(el)) continue;
+    for (el = el.firstChild; el; el = el.nextSibling) {
+      if (el._o_visited === visited) {
+        throw Error(
+          "loopping in the dom tree: " + el.localname + "(" + el.className + ")"
+        );
+      }
+      if (false === visitor(el)) return;
+      waits.push(el);
+      el._o_visited === visited;
+    }
+  }
 }

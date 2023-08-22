@@ -6,6 +6,33 @@ import { toQueryString } from "./string";
 const w = window;
 const MutationObserver = w.MutationObserver || w.WebKitMutationObserver;
 
+export const toString = (obj) => Object.prototype.toString.call(obj);
+export const isObject = (obj) => obj && obj instanceof Object;
+export const isFunction = (obj) => "function" === typeof obj;
+export const isPlanObject = (obj) => toString(obj) === "[object Object]";
+export const defineHiddenProperty = (obj, key, value) =>
+  Object.defineProperty(
+    obj,
+    key,
+    Object.assign(
+      {
+        configurable: false,
+        enumerable: false,
+      },
+      value
+    )
+  );
+
+export function isalpha(c) {
+  return ("a" <= c && c <= "z") || ("A" <= c && c <= "Z") || "_" === c;
+}
+
+export function isnum(c) {
+  return "0" <= c && c <= "9";
+}
+
+export const noop = (_) => _;
+
 export function wrapper(source, attr, fn) {
   source["_" + attr] = source[attr];
   source[attr] = fn;
@@ -146,10 +173,11 @@ export function newFunction(str) {
 //     P.call(this, opts);
 // }
 // extend(C, P);
-export function extend(sub, base) {
-  sub.prototype = Object.assign(Object.create(base.prototype), sub.prototype);
+export function extend(sub, base, methods) {
+  sub.prototype = Object.create(base && base.prototype);
   sub.prototype.constructor = sub;
-  sub.base = base;
+  methods && Object.assign(sub.prototype, methods);
+
   return sub;
 }
 
@@ -173,6 +201,71 @@ export function watch(obj, key, callback) {
       return value;
     },
   });
+}
+
+export function proxyObj(obj, callback, prefix = "") {
+  if (!isObject(obj) || isFunction(obj)) return obj;
+
+  for (let k in obj) {
+    let v = obj[k];
+    if (!isObject(v) || isFunction(v)) continue;
+    obj[k] = proxyObj(v, callback, `${prefix}.${k}`);
+  }
+
+  return proxyImpl(obj, (type, target, prop, val) => {
+    let key = `${prefix}.${prop}`;
+    if (!prop.startsWith("$") && isObject(val) && !isFunction(val)) {
+      target[prop] = proxyObj(val, callback, key);
+    }
+    callback(key, { obj: target, prop, type });
+  });
+}
+
+const g_proxies = new Map();
+
+function proxyImpl(obj, callback) {
+  assert.function(callback, "callback");
+
+  if (!isObject(obj)) return obj;
+
+  const isArray = Array.isArray(obj);
+
+  let each;
+  let callbacks = g_proxies.get(obj);
+  if (!callbacks) {
+    callbacks = [];
+    obj = new Proxy(obj, {
+      set(target, prop, value, receiver) {
+        const type = target.hasOwnProperty(prop) ? "u" : "c";
+        target[prop] = value;
+        if (!isArray || "length" !== prop) {
+          callbacks.forEach((it) => it(type, target, prop, value));
+        }
+        return true;
+      },
+      deleteProperty(target, prop) {
+        let stack = [target[prop]];
+        while ((each = stack.pop())) {
+          for (let k in each) {
+            let v = each[k];
+            if (v && isObject(v) && !isFunction(v)) {
+              ~stack.indexOf(v) || stack.push(v);
+            }
+          }
+          g_proxies.delete(each);
+        }
+        delete target[prop];
+        callbacks.forEach((it) => it("d", target, prop));
+        return true;
+      },
+    });
+
+    g_proxies.set(obj, callbacks);
+  }
+
+  ~callbacks.indexOf(callback) || callbacks.push(callback);
+
+  return obj;
 }
 
 export function arrayIndex(array, compare) {
@@ -327,4 +420,83 @@ export function loadImage(src) {
     };
     image.src = src;
   });
+}
+
+export function EventBus() {
+  this.handlerMap = new Map();
+}
+
+extend(EventBus, null, {
+  on(event, handler) {
+    if (!(event && handler)) return this;
+    let handlers = this.handlerMap.get(event);
+    if (!handlers) {
+      handlers = new Set();
+      this.handlerMap.set(event, handlers);
+    }
+    handlers.add(handler);
+    return this;
+  },
+  off(event, handler) {
+    if (!(event && handler)) return this;
+    let handlers = this.handlerMap.get(event);
+    if (handlers) {
+      handlers.delete(handler);
+    }
+    return this;
+  },
+  // flag: 1-bubbing, 2-capturing, 3-all
+  fire(event, value, flag = 0) {
+    if (!event) return this;
+
+    let handlers = this.handlerMap.get(event);
+    handlers && handlers.forEach((it) => it(value, event));
+    if (flag & 1) {
+      let idx = event.lastIndexOf(".", event.length - 2);
+      ~idx && this.fire(event.substr(0, idx + 1), value, 1);
+    }
+    if (flag & 2) {
+      [...this.handlerMap.keys()]
+        .filter((it) => event !== it && it.startsWith(event))
+        .forEach((it) => this.fire(it, value));
+      this.fire("", value);
+    }
+    return this;
+  },
+});
+
+export function createFn() {
+  try {
+    return new Function(...arguments);
+  } catch (e) {
+    return noop;
+  }
+}
+
+export function iterateObj(obj, callback, prefix = "") {
+  if (!isObject(obj) || isFunction(obj)) return;
+
+  for (const key in obj) {
+    let v = obj[key];
+    if (isFunction(v)) continue;
+    callback(obj, key, prefix);
+    iterateObj(v, callback, `${prefix}.${key}`);
+  }
+}
+
+export function forEachRegex(re, str, callback) {
+  let m;
+  while ((m = re.exec(str))) {
+    if (m.index === re.lastIndex) {
+      re.lastIndex++;
+    }
+    callback(m);
+  }
+}
+
+export function mapRegex(re, str, callback) {
+  let ret = [];
+  forEachRegex(re, str, (it) => ret.push(callback(it)));
+
+  return ret;
 }

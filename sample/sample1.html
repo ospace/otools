@@ -22,51 +22,41 @@
     <h1>Binding</h1>
     <div id="foo" class="foo bar" data-a1="a1" data-a2="a2">
       <div>
-        <input
-          type="text"
-          placeholder="change me!!!"
-          o-model="foo.name|upperCase"
-        />
+        <input type="text" placeholder="change me!!!" o-model="foo.name" />
         <span>Name: {{ foo.name | upperCase }}</span>
       </div>
 
       <div>
-        <input type="RADIO" value="true" id="r1" o-model="foo.use" checked />
+        <input type="RADIO" value="true" id="r1" o-model="foo.use" />
         <label for="r1">사용</label>
         <input type="RADIO" value="false" id="r2" o-model="foo.use" />
         <label for="r2">미사용</label>
         <span> - 사용여부:{{foo.use}}</span>
       </div>
       <div>
-        <input
-          type="RADIO"
-          value="true"
-          id="r3"
-          o-model="foo.checked"
-          checked
-        />
+        <input type="RADIO" value="true" id="r3" o-model="foo.checked" />
         <label for="r3">선택</label>
         <input type="RADIO" value="false" id="r4" o-model="foo.checked" />
         <label for="r4">미선택</label>
       </div>
 
       <div>
-        <input type="checkbox" id="r4" o-model="foo.use" /><label for="r4"
+        <input type="checkbox" id="r5" o-model="foo.use" /><label for="r5"
           >Use:{{foo.use}}</label
         >
-        <input type="checkbox" id="r3" o-model="foo.checked" /><label for="r3"
+        <input type="checkbox" id="r6" o-model="foo.checked" /><label for="r6"
           >Checked:{{foo.checked}}</label
         >
       </div>
 
       <div>
-        <input type="checkbox" value="CHK1" o-model="checklist" />
-        <input type="checkbox" value="CHK2" o-model="checklist" />
-        <input type="checkbox" value="CHK3" o-model="checklist" />
+        <input type="checkbox" id="r7" value="CHK1" o-model="checklist" />
+        <input type="checkbox" id="r8" value="CHK2" o-model="checklist" />
+        <input type="checkbox" id="r9" value="CHK3" o-model="checklist" />
         <span>Checklist: {{checklist}}</span>
       </div>
       <div>
-        <select o-model="selected">
+        <select id="r10" o-model="selected">
           <option value="">select</option>
           <option value="true">사용</option>
           <option value="false">미사용</option>
@@ -74,7 +64,7 @@
         <span>선택:{{selected}}</span>
       </div>
       <div>
-        <select o-model="checklist" multiple>
+        <select id="r11" o-model="checklist" multiple>
           <option>CHK1</option>
           <option>CHK2</option>
           <option>CHK3</option>
@@ -84,13 +74,13 @@
       <div style="display: table; width: 100%">
         <div style="display: table-cell; width: 15%" for="r5">Message:</div>
         <div style="display: table-cell; width: 70%">
-          <input id="r5" type="text" />
+          <input id="r12" type="text" />
         </div>
         <div style="display: table-cell; width: 15%">
           <button type="button" onclick="onAdd(event)">ADD</button>
         </div>
       </div>
-      <table cellspacing="0" width="100%">
+      <table id="r13" cellspacing="0" width="100%">
         <colgroup>
           <col width="5%" />
           <col width="40%" />
@@ -103,7 +93,7 @@
           <th>Input</th>
           <th>Action</th>
         </tr>
-        <tr o-for="items" o-key="id">
+        <tr o-for="items">
           <td style="text-align: center">{{id}}</td>
           <td>{{message}}</td>
           <td><input type="text" o-model="message" /></td>
@@ -133,17 +123,12 @@
           { message: "bar", id: 2 },
           { message: "fo1", id: 3 },
           { message: "fo2", id: 4 },
-          { message: "fo3", id: 5 },
-          { message: "fo4", id: 6 },
-          { message: "fo5", id: 7 },
-          { message: "fo6", id: 8 },
-          { message: "fo7", id: 9 },
         ],
       };
 
       var domFoo = document.getElementById("foo");
 
-      o.bindOf(data, domFoo);
+      data = o.bindOf(data, domFoo);
 
       function upperCase(val) {
         return val && val.toUpperCase();
