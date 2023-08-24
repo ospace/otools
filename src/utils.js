@@ -237,8 +237,8 @@ function proxyImpl(obj, callback) {
     obj = new Proxy(obj, {
       set(target, prop, value, receiver) {
         const type = target.hasOwnProperty(prop) ? "u" : "c";
-        target[prop] = value;
-        if (!isArray || "length" !== prop) {
+        Reflect.set(target, prop, value);
+        if (!(isArray && "length" === prop)) {
           callbacks.forEach((it) => it(type, target, prop, value));
         }
         return true;
@@ -254,7 +254,7 @@ function proxyImpl(obj, callback) {
           }
           g_proxies.delete(each);
         }
-        delete target[prop];
+        Reflect.deleteProperty(target, prop);
         callbacks.forEach((it) => it("d", target, prop));
         return true;
       },

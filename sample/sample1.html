@@ -41,10 +41,12 @@
       </div>
 
       <div>
-        <input type="checkbox" id="r5" o-model="foo.use" /><label for="r5"
+        <input type="checkbox" id="r5" value="" o-model="foo.use" /><label
+          for="r5"
           >Use:{{foo.use}}</label
         >
-        <input type="checkbox" id="r6" o-model="foo.checked" /><label for="r6"
+        <input type="checkbox" id="r6" value="" o-model="foo.checked" /><label
+          for="r6"
           >Checked:{{foo.checked}}</label
         >
       </div>
@@ -83,8 +85,8 @@
       <label for="r13">Hide:</label
       ><input type="checkbox" o-model="hide" value="" />
 
-      <div o-if="!hide">
-        <table id="r14" cellspacing="0" width="100%">
+      <div id="dataTable">
+        <table id="r14" cellspacing="0" width="100%" o-if="!hide">
           <colgroup>
             <col width="5%" />
             <col width="40%" />
@@ -152,17 +154,23 @@
         data.items.push({ message: value, id: maxId + 1 });
       }
 
-      o.on(document.querySelector("table"), "click", "button", function (ev) {
-        var id = ev.target.dataset.id;
-        var idx = data.items.findIndex(function (it) {
-          return it.id == id;
-        });
-        if (!~idx) {
-          return alert("item not found: " + id + "->" + idx);
-        }
+      o.on(
+        document.querySelector("#dataTable"),
+        "click",
+        "button",
+        function (ev) {
+          var id = ev.target.dataset.id;
+          var idx = data.items.findIndex(function (it) {
+            return it.id == id;
+          });
+          if (!~idx) {
+            return alert("item not found: " + id + "->" + idx);
+          }
 
-        data.items.splice(idx, 1);
-      });
+          data.items.splice(idx, 1);
+          console.log("deleted:", idx);
+        }
+      );
     </script>
   </body>
 </html>

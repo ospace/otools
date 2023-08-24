@@ -86,7 +86,7 @@ extend(OBinder, EventBus, {
           { el: node, option, value: attr.value, queue, binder: this },
         ]);
       } else {
-        this.bindNodeValue(node, name, obj, attr.value, errs);
+        this.bindNodeAttr(node, name, obj, attr.value, errs);
       }
 
       while (queue.length) {
@@ -98,19 +98,24 @@ extend(OBinder, EventBus, {
           }
           cmd.binded(node, obj, info);
         } else {
-          this.bindNodeValue(node, info.option, obj, info.value, errs);
+          this.bindNodeAttr(node, info.option, obj, info.value, errs);
         }
       }
     }
   },
-  bindNodeValue(el, attName, obj, value, errs) {
+  bindNodeAttr(el, attName, obj, value, errs) {
     const self = this;
+    const useProp = isUseProp(el, attName);
     this.doContentReplacer(
       value,
       function (get) {
         return function () {
           self.metaObj.el = el;
-          el[attName] = get.call(obj);
+          if (useProp) {
+            el[attName] = get.call(obj);
+          } else {
+            el.setAttribute(attName, get.call(obj));
+          }
           self.metaObj.el = null;
         };
       },
@@ -206,6 +211,19 @@ function parseContent(value) {
     },
     getRaw: fnExpression,
   };
+}
+
+const useValueElements = ["input", "textarea", "option", "select", "progress"];
+function isUseProp(el, attrName) {
+  const tagName = el.nodeName.toLowerCase();
+  return (
+    (~useValueElements.indexOf(tagName) &&
+      attrName === "value" &&
+      "button" !== el.getAttribute("type")?.toLowerCase()) ||
+    ("option" === tagName && "selected" === attrName) ||
+    ("input" === tagName && "checked" === attrName) ||
+    ("muted" === tagName && "video" === attrName)
+  );
 }
 
 function Directive() {
@@ -336,15 +354,16 @@ directive.on("for", {
     if (!mapping) return;
 
     let data = mapping.get.call(obj);
-
+    const elements = [];
     function appendItem(idx) {
       const clone = template.cloneNode(true);
       parent.appendChild(clone);
       data[idx] = binder.bind(data[idx], clone);
+      elements.push(clone);
     }
 
     function removeItem(idx) {
-      let item = parent.children[idx];
+      let item = elements.splice(idx, 1)[0];
       item && parent.removeChild(item);
     }
 
@@ -354,17 +373,18 @@ directive.on("for", {
 
     let bus = new EventBus()
       .on("d", ({ prop }) => removeItem(prop))
-      .on("c", ({ prop }) => appendItem(prop));
+      .on("c", ({ prop }) => appendItem(prop))
+      .on("u", ({ prop }) => binder.fire(`.${mapping.keys[0]}.${prop}`, {}, 2));
 
     for (let i = 0; i < data.length; ++i) {
       const idx = String(i);
-      binder.$on(`.${mapping.keys[0]}.${idx}`, ({ prop, type }) => {
+      binder.$on(`.${mapping.keys[0]}.${idx}`, ({ prop, type, value }) => {
         if (idx === prop) {
           bus.fire(type, { prop });
         }
       });
     }
-    binder.$on("." + mapping.keys[0], ({ prop, type }) => {
+    binder.$on("." + mapping.keys[0], ({ prop, type, value }) => {
       bus.fire(type, { prop });
     });
   },
