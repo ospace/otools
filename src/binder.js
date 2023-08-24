@@ -9,6 +9,7 @@ import {
   mapRegex,
 } from "./utils";
 import { iterateNode } from "./dom";
+import { partitioning } from "./data";
 
 const w = window;
 
@@ -74,49 +75,56 @@ extend(OBinder, EventBus, {
     });
     errs.forEach((e) => console.warn("ERROR:", e));
   },
-  bindElementNode(node, obj, errs) {
+  bindElementNode(elem, obj, errs) {
     let queue = [];
-    // for (const attr of node.attributes) {
-    for (const attrName of node.getAttributeNames()) {
-      const attrValue = node.getAttribute(attrName);
-      const name = SHORT_WORDS.getWord(attrName);
-      if (name.startsWith("o-")) {
-        node.removeAttribute(attrName);
+    let { true: keywords, false: attrs } = partitioning(
+      elem.getAttributeNames(),
+      (it) => it.startsWith("o-")
+    );
+    if (keywords) {
+      for (const attrName of keywords) {
+        const attrValue = elem.getAttribute(attrName);
+        const name = SHORT_WORDS.getWord(attrName);
+        elem.removeAttribute(attrName);
         const [cmd, option] = name.split(":");
         queue.push([
           cmd,
-          { el: node, option, value: attrValue, queue, binder: this },
+          { el: elem, option, value: attrValue, queue, binder: this },
         ]);
-      } else {
-        this.bindNodeAttr(node, name, obj, attrValue, errs);
-      }
 
-      while (queue.length) {
-        const [cmdId, info] = queue.shift();
-        if (cmdId) {
-          const cmd = directive.get(cmdId);
-          if (!cmd) {
-            return console.warn(`not supported directive: ${cmdId}`);
+        while (queue.length) {
+          const [cmdId, info] = queue.shift();
+          if (cmdId) {
+            const cmd = directive.get(cmdId);
+            if (!cmd) {
+              return console.warn(`not supported directive: ${cmdId}`);
+            }
+            cmd.binded(elem, obj, info);
+          } else {
+            this.bindNodeAttr(elem, info.option, obj, info.value, errs);
           }
-          cmd.binded(node, obj, info);
-        } else {
-          this.bindNodeAttr(node, info.option, obj, info.value, errs);
         }
       }
+    } else {
+      attrs &&
+        attrs.forEach((attrName) => {
+          const attrValue = elem.getAttribute(attrName);
+          this.bindNodeAttr(elem, attrName, obj, attrValue, errs);
+        });
     }
   },
-  bindNodeAttr(el, attName, obj, value, errs) {
+  bindNodeAttr(elem, attName, obj, value, errs) {
     const self = this;
-    const useProp = isUseProp(el, attName);
+    const useProp = isUseProp(elem, attName);
     this.doContentReplacer(
       value,
       function (get) {
         return function () {
-          self.metaObj.el = el;
+          self.metaObj.el = elem;
           if (useProp) {
-            el[attName] = get.call(obj);
+            elem[attName] = get.call(obj);
           } else {
-            el.setAttribute(attName, get.call(obj));
+            elem.setAttribute(attName, get.call(obj));
           }
           self.metaObj.el = null;
         };
@@ -360,7 +368,7 @@ directive.on("for", {
     function appendItem(idx) {
       const clone = template.cloneNode(true);
       parent.appendChild(clone);
-      data[idx] = binder.bind(data[idx], clone);
+      binder.render(data[idx], clone);
       elements.push(clone);
     }
 
@@ -411,7 +419,9 @@ directive.on("if", {
           isRendered = true;
         }
       } else {
-        parent.removeChild(content);
+        if (document.body.contains(content)) {
+          parent.removeChild(content);
+        }
       }
     }
 

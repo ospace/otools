@@ -48,9 +48,23 @@
           stroke="{{stroke}}"
           fill="{{fill}}"
         ></rect>
+        <circle
+          o-if="type==='circle'"
+          cx="{{cx}}"
+          cy="{{cy}}"
+          r="{{r}}"
+          stroke="{{stroke}}"
+          fill="{{fill}}"
+        ></circle>
+        <polygon
+          o-if="type==='polygon'"
+          points="{{points}}"
+          stroke="{{stroke}}"
+          fill="{{fill}}"
+        ></polygon>
       </g>
       <!--     <rect x="138" y="146" width="162" height="91" stroke="#000000" fill="#ffffff"></rect> -->
-      <circle cx="431" cy="183" r="73" stroke="#000000" fill="#ffffff"></circle>
+      <!-- <circle cx="431" cy="183" r="73" stroke="#000000" fill="#ffffff"></circle>
       <polygon
         points="575 154 575 222 686 225"
         stroke="#000000"
@@ -63,7 +77,7 @@
         y="309.5"
         width="5"
         height="5"
-      ></rect>
+      ></rect> -->
     </svg>
     <script src="../dist/otools.js"></script>
     <script>
@@ -78,6 +92,20 @@
             y: 146,
             w: 162,
             h: 91,
+            stroke: "#000000",
+            fill: "#ffffff",
+          },
+          {
+            type: "circle",
+            cx: 431,
+            cy: 183,
+            r: 73,
+            stroke: "#000000",
+            fill: "#ffffff",
+          },
+          {
+            type: "polygon",
+            points: "575 154 575 222 686 225",
             stroke: "#000000",
             fill: "#ffffff",
           },

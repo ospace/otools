@@ -298,13 +298,13 @@ export function iterateNode(node, visitor) {
   while (0 < waits.length) {
     el = waits.shift();
     if (!document.body.contains(el)) continue;
+    if (false === visitor(el)) return;
     for (el = el.firstChild; el; el = el.nextSibling) {
       if (el._o_visited === visited) {
         throw Error(
           "loopping in the dom tree: " + el.localname + "(" + el.className + ")"
         );
       }
-      if (false === visitor(el)) return;
       waits.push(el);
       el._o_visited === visited;
     }
