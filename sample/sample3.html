@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <title>sample3</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta name="robots" content="index,follow" />
+    <style>
+      #svg {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #svg .helper {
+        stroke-width: 2px;
+        stroke: black;
+        fill: white;
+        height: 5px;
+        width: 5px;
+        z-index: 1000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Svg</h1>
+    <svg
+      id="svg"
+      xmlns="http://www.w3.org/2000/svg"
+      version="1.2"
+      baseProfile="tiny"
+    >
+      <!--     <g>
+          <rect x="38" y="30" width="99" height="86"></rect>
+          <rect class="helper move" x="84.5" y="70"></rect>
+        </g> -->
+      <g o-for="items">
+        <rect
+          o-if="type === 'rect'"
+          x="{{x}}"
+          y="{{y}}"
+          width="{{w}}"
+          height="{{h}}"
+          stroke="{{stroke}}"
+          fill="{{fill}}"
+        ></rect>
+      </g>
+      <!--     <rect x="138" y="146" width="162" height="91" stroke="#000000" fill="#ffffff"></rect> -->
+      <circle cx="431" cy="183" r="73" stroke="#000000" fill="#ffffff"></circle>
+      <polygon
+        points="575 154 575 222 686 225"
+        stroke="#000000"
+        fill="#ffffff"
+      ></polygon>
+      <rect
+        class="helper"
+        style=""
+        x="143.5"
+        y="309.5"
+        width="5"
+        height="5"
+      ></rect>
+    </svg>
+    <script src="../dist/otools.js"></script>
+    <script>
+      "use strict";
+      console.log("running...");
+
+      var data = {
+        items: [
+          {
+            type: "rect",
+            x: 138,
+            y: 146,
+            w: 162,
+            h: 91,
+            stroke: "#000000",
+            fill: "#ffffff",
+          },
+        ],
+      };
+
+      data = o.bindOf(data, svg);
+    </script>
+  </body>
+</html>

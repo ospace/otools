@@ -76,17 +76,20 @@ extend(OBinder, EventBus, {
   },
   bindElementNode(node, obj, errs) {
     let queue = [];
-    for (const attr of node.attributes) {
-      const name = SHORT_WORDS.getWord(attr.name);
+    // for (const attr of node.attributes) {
+    for (const attrName of node.getAttributeNames()) {
+      console.log(">> node:", node.tagName, attrName, attrValue);
+      const attrValue = node.getAttribute(attrName);
+      const name = SHORT_WORDS.getWord(attrName);
       if (name.startsWith("o-")) {
-        node.removeAttribute(name);
+        node.removeAttribute(attrName);
         const [cmd, option] = name.split(":");
         queue.push([
           cmd,
-          { el: node, option, value: attr.value, queue, binder: this },
+          { el: node, option, value: attrValue, queue, binder: this },
         ]);
       } else {
-        this.bindNodeAttr(node, name, obj, attr.value, errs);
+        this.bindNodeAttr(node, name, obj, attrValue, errs);
       }
 
       while (queue.length) {
@@ -104,6 +107,7 @@ extend(OBinder, EventBus, {
     }
   },
   bindNodeAttr(el, attName, obj, value, errs) {
+    console.log(">> bindNodeAttr:", attName, value);
     const self = this;
     const useProp = isUseProp(el, attName);
     this.doContentReplacer(
