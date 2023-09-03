@@ -237,6 +237,7 @@ function proxyImpl(obj, callback) {
     obj = new Proxy(obj, {
       set(target, prop, value, receiver) {
         const type = target.hasOwnProperty(prop) ? "u" : "c";
+        if ("u" === type && value === target[prop]) return true;
         Reflect.set(target, prop, value);
         if (!(isArray && "length" === prop)) {
           callbacks.forEach((it) => it(type, target, prop, value));
@@ -447,10 +448,13 @@ extend(EventBus, null, {
   },
   // flag: 1-bubbing, 2-capturing, 3-all
   fire(event, value, flag = 0) {
-    if (!event) return this;
-
+    if (!event || "." === event) return this;
     let handlers = this.handlerMap.get(event);
-    handlers && handlers.forEach((it) => it(value, event));
+    if (handlers) {
+      for (let handler of handlers) {
+        if (true === handler(value, event)) return this;
+      }
+    }
     if (flag & 1) {
       let idx = event.lastIndexOf(".", event.length - 2);
       ~idx && this.fire(event.substr(0, idx + 1), value, 1);
@@ -459,7 +463,6 @@ extend(EventBus, null, {
       [...this.handlerMap.keys()]
         .filter((it) => event !== it && it.startsWith(event))
         .forEach((it) => this.fire(it, value));
-      this.fire("", value);
     }
     return this;
   },
@@ -469,6 +472,7 @@ export function createFn() {
   try {
     return new Function(...arguments);
   } catch (e) {
+    console.warn(`new function failed:`, ...arguments);
     return noop;
   }
 }

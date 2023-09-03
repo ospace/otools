@@ -74,7 +74,7 @@
       </div>
 
       <div style="display: table; width: 100%">
-        <div style="display: table-cell; width: 15%" for="r5">Message:</div>
+        <div style="display: table-cell; width: 15%" for="r12">Message:</div>
         <div style="display: table-cell; width: 70%">
           <input id="r12" type="text" />
         </div>
@@ -99,11 +99,11 @@
             <th>Input</th>
             <th>Action</th>
           </tr>
-          <tr o-for="items">
-            <td style="text-align: center">{{id}}</td>
-            <td>{{message}}</td>
-            <td><input type="text" o-model="message" /></td>
-            <td><button type="button" data-id="{{id}}">DEL</button></td>
+          <tr o-for="item of items">
+            <td style="text-align: center">{{item.id}}</td>
+            <td>{{item.message}}</td>
+            <td><input type="text" o-model="item.message" /></td>
+            <td><button type="button" data-id="{{item.id}}">DEL</button></td>
           </tr>
         </table>
       </div>
@@ -123,7 +123,7 @@
         selected: "",
         checklist: [],
         useYn: function () {
-          return this.selected === "true" ? true : false;
+          return this.selected === "true";
         },
         hide: false,
         items: [
@@ -136,7 +136,7 @@
 
       var domFoo = document.getElementById("foo");
 
-      data = o.bindOf(data, domFoo);
+      data = o.bindOf(domFoo, data);
 
       function upperCase(val) {
         return val && val.toUpperCase();
@@ -145,7 +145,7 @@
       function onAdd(ev) {
         var parent = ev.target.parentElement;
         //var input = parent.querySelector("input[type=text]");
-        var input = r5;
+        var input = r12;
         var value = input.value;
         input.value = "";
         var maxId = data.items.reduce(function (a, v) {

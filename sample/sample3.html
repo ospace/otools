@@ -38,29 +38,29 @@
           <rect x="38" y="30" width="99" height="86"></rect>
           <rect class="helper move" x="84.5" y="70"></rect>
         </g> -->
-      <g o-for="items">
+      <g o-for="item of items">
         <rect
-          o-if="type === 'rect'"
-          x="{{x}}"
-          y="{{y}}"
-          width="{{w}}"
-          height="{{h}}"
-          stroke="{{stroke}}"
-          fill="{{fill}}"
+          o-if="item.type === 'rect'"
+          x="{{item.x}}"
+          y="{{item.y}}"
+          width="{{item.w * scale}}"
+          height="{{item.h * scale}}"
+          stroke="{{item.stroke}}"
+          fill="{{item.fill}}"
         ></rect>
         <circle
-          o-if="type==='circle'"
-          cx="{{cx}}"
-          cy="{{cy}}"
-          r="{{r}}"
-          stroke="{{stroke}}"
-          fill="{{fill}}"
+          o-if="item.type==='circle'"
+          cx="{{item.cx}}"
+          cy="{{item.cy}}"
+          r="{{item.r}}"
+          stroke="{{item.stroke}}"
+          fill="{{item.fill}}"
         ></circle>
         <polygon
-          o-if="type==='polygon'"
-          points="{{points}}"
-          stroke="{{stroke}}"
-          fill="{{fill}}"
+          o-if="item.type==='polygon'"
+          points="{{item.points}}"
+          stroke="{{item.stroke}}"
+          fill="{{item.fill}}"
         ></polygon>
       </g>
       <!--     <rect x="138" y="146" width="162" height="91" stroke="#000000" fill="#ffffff"></rect> -->
@@ -110,9 +110,11 @@
             fill: "#ffffff",
           },
         ],
+        scale: 1.0,
+        foo: 10,
       };
 
-      data = o.bindOf(data, svg);
+      data = o.bindOf(svg, data);
     </script>
   </body>
 </html>

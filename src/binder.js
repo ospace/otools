@@ -7,11 +7,10 @@ import {
   isFunction,
   defineHiddenProperty,
   mapRegex,
+  noop,
 } from "./utils";
 import { iterateNode } from "./dom";
 import { partitioning } from "./data";
-
-const w = window;
 
 const SHORT_WORDS = {
   "@": "o-on:",
@@ -33,7 +32,7 @@ function OBinder() {
 }
 
 extend(OBinder, EventBus, {
-  bind(obj, elem) {
+  bind(elem, obj) {
     iterateObj(obj, (target, key, prefix) =>
       this.objKeys.push(`${prefix}.${key}.`)
     );
@@ -51,31 +50,31 @@ extend(OBinder, EventBus, {
       defineHiddenProperty(obj, key, value);
     }
 
-    let fire = () => {};
+    let fire = noop;
 
     obj = proxyObj(obj, (key, val) => {
-      // const { type } = val;
       const key_ = this.findEvent(key);
-      fire.call(this, key_, val, 2);
+      // fire.call(this, key_, val, 3);
+      fire.call(this, key_, val, 1);
     });
     fire = this.fire;
 
-    this.render(obj, elem);
+    this.render(elem, obj);
 
     return obj;
   },
-  render(obj, elem) {
+  render(elem, obj, args, ctx) {
     const errs = [];
     iterateNode(elem, (node) => {
       if (1 === node.nodeType) {
-        this.bindElementNode(node, obj, errs);
+        this.bindElementNode(node, obj, args, ctx, errs);
       } else if (3 === node.nodeType) {
-        this.bindTextNode(obj, node, errs);
+        this.bindTextNode(node, obj, args, ctx, errs);
       }
     });
     errs.forEach((e) => console.warn("ERROR:", e));
   },
-  bindElementNode(elem, obj, errs) {
+  bindElementNode(elem, obj, args, ctx, errs) {
     let queue = [];
     let { true: keywords, false: attrs } = partitioning(
       elem.getAttributeNames(),
@@ -89,7 +88,7 @@ extend(OBinder, EventBus, {
         const [cmd, option] = name.split(":");
         queue.push([
           cmd,
-          { el: elem, option, value: attrValue, queue, binder: this },
+          { el: elem, option, value: attrValue, queue, binder: this, args },
         ]);
 
         while (queue.length) {
@@ -101,7 +100,8 @@ extend(OBinder, EventBus, {
             }
             cmd.binded(elem, obj, info);
           } else {
-            this.bindNodeAttr(elem, info.option, obj, info.value, errs);
+            const { option, args, value } = info;
+            this.bindNodeAttr(elem, option, obj, args, value, ctx, errs);
           }
         }
       }
@@ -109,70 +109,50 @@ extend(OBinder, EventBus, {
       attrs &&
         attrs.forEach((attrName) => {
           const attrValue = elem.getAttribute(attrName);
-          this.bindNodeAttr(elem, attrName, obj, attrValue, errs);
+          this.bindNodeAttr(elem, attrName, obj, args, attrValue, ctx, errs);
         });
     }
   },
-  bindNodeAttr(elem, attName, obj, value, errs) {
-    const self = this;
+  bindTextNode(elem, obj, args, ctx, errs) {
+    const mapping = parseContent(elem.textContent);
+    if (!mapping) return;
+    const setter = (val) => (elem.textContent = val);
+    this.buildMapping(mapping, elem, obj, args, setter, ctx, errs);
+  },
+  bindNodeAttr(elem, attName, obj, args, value, ctx, errs) {
+    const mapping = parseContent(value);
+    if (!mapping) return;
+
     const useProp = isUseProp(elem, attName);
-    this.doContentReplacer(
-      value,
-      function (get) {
-        return function () {
-          self.metaObj.el = elem;
-          if (useProp) {
-            elem[attName] = get.call(obj);
-          } else {
-            elem.setAttribute(attName, get.call(obj));
-          }
-          self.metaObj.el = null;
-        };
-      },
-      errs
-    );
+    const setter = useProp
+      ? (val) => (elem[attName] = val)
+      : (val) => elem.setAttribute(attName, val);
+    this.buildMapping(mapping, elem, obj, args, setter, ctx, errs);
   },
-  bindTextNode(obj, node, errs) {
-    const self = this;
-    node.textContent &&
-      this.doContentReplacer(
-        node.textContent,
-        function (get) {
-          return function () {
-            self.metaObj.el = node;
-            node.textContent = get.call(obj);
-            self.metaObj.el = null;
-          };
-        },
-        errs
-      );
-  },
-  doContentReplacer(content, factorySetter, errs) {
-    const preRe = /{{([\w\W]+?)}}/g;
-    const mappings = [];
-    let id = 0;
-    const normalizedText = content.replace(preRe, (m, k) => {
-      mappings.push(parseContent(k));
-      return "${v[" + id++ + "]}";
-    });
-
-    if (!mappings.length) return;
-
-    const fnTemplateText = createTemplate(["v"], normalizedText);
-
-    const action = factorySetter(function () {
-      try {
-        return fnTemplateText(mappings.map((it) => it.get.call(this)));
-      } catch (e) {
-        errs && errs.push([content, e]);
-        return "";
+  buildMapping(mapping, elem, obj, args, setter, ctx, errs) {
+    const params = args ? Object.keys(args) : [];
+    const vals = args ? Object.values(args) : [];
+    const expr = mapping.expr;
+    mapping.get = createFunction(params, expr).bind(obj, ...vals);
+    if ("function" === typeof setter) {
+      mapping.action = () => {
+        try {
+          this.metaObj.el = elem;
+          setter(mapping.get());
+          this.metaObj.el = null;
+        } catch (e) {
+          errs && errs.push([mapping.expr, e]);
+        }
+      };
+      mapping.events.forEach((it) => this.$on(createEvent(it), mapping.action));
+      if (ctx && ctx.event) {
+        let ev = ctx.event;
+        this.$on(createEvent(ctx.event), mapping.action);
       }
-    });
-    action();
+      mapping.action();
+    }
 
-    mappings.forEach((mapping) =>
-      mapping.keys.forEach((it) => this.$on("." + it, () => action()))
-    );
+    return mapping;
   },
   $on(event, handler) {
     this.on(this.findEvent(event), handler);
@@ -181,47 +161,74 @@ extend(OBinder, EventBus, {
     this.off(this.findEvent(event), handler);
   },
   findEvent(event) {
-    event = event.startsWith(".") ? event : "." + event;
-    event = event.endsWith(".") ? event : event + ".";
+    event = createEvent(event);
     return this.objKeys.find((it) => event.startsWith(it));
   },
 });
 
-function parseContent(value) {
+function parseContent(value, isReturn = true) {
+  const preRe = /{{([\w\W]+?)}}/g;
+  const mappings = [];
+  let id = 0;
+  const templateText = value.replace(preRe, (m, k) => {
+    mappings.push(parseText(k, false));
+    return "${v[" + id++ + "]}";
+  });
+
+  if (!mappings.length) return null;
+
+  const events = mappings.map((it) => it.events).flat();
+  let expr = `((v) => \`${templateText}\`)([${mappings
+    .map((it) => `(${it.expr})`)
+    .join(",")}])`;
+
+  expr = isReturn ? `return ${expr}` : expr;
+
+  return { events, expr };
+}
+
+function parseText(value, isReturn = true) {
   const reId =
     /(?:\.?[$\w][$\w\d]*\s*|\[\s*(?:\d*|('|")(?:\\\1|.)*?\1)\s*\])*/g;
   const reStr = /('|")((?:\\\1|.)*?)\1/g;
 
   const filters = value.split(/\b\s*\|(?!\|)\s*/g).map((a) => a.trim());
-  const expression = filters.shift();
+  let expr = filters.shift();
 
-  let targets = mapRegex(reId, expression, (it) => it[0]);
-  const excepts = mapRegex(reStr, expression, (it) => it[2]);
-  targets = targets.filter(
+  let events = mapRegex(reId, expr, (it) => it[0]);
+  const excepts = mapRegex(reStr, expr, (it) => it[2]);
+  events = events.filter(
     (it) => it && !it.startsWith(".") && !~excepts.indexOf(it)
   );
 
-  const fnExpression = createFunction1(expression);
-  const fnFilter = createFunction1(
-    ["value"],
-    filters.reduce((pre, it) => {
-      // assert.function(w[each], each);
-      if ("function" !== typeof window[it])
-        throw Error(`${it} is not function!!!`);
-      return `${it}(${pre})`;
-    }, "value")
-  );
+  expr = filters.reduce((pre, it) => {
+    if ("function" !== typeof window[it])
+      throw Error(`${it} is not function!!!`);
+    return `${it}(${pre})`;
+  }, expr);
 
-  const getRaw = () => fnExpression.call(obj);
+  expr = isReturn ? `return ${expr}` : expr;
 
-  return {
-    keys: targets,
-    get: function () {
-      return fnFilter(fnExpression.call(this));
-    },
-    getRaw: fnExpression,
-  };
+  return { events, expr };
 }
+
+function createEvent(...args) {
+  let ret = args.join(".");
+  if ("." === ret.charAt(0)) {
+    if ("." !== ret.charAt(ret.length - 1)) {
+      ret = `${ret}.`;
+    }
+  } else {
+    if ("." === ret.charAt(ret.length - 1)) {
+      ret = `.${ret}`;
+    } else {
+      ret = `.${ret}.`;
+    }
+  }
+  return ret;
+}
+
+createEvent("a");
 
 const useValueElements = ["input", "textarea", "option", "select", "progress"];
 function isUseProp(el, attrName) {
@@ -255,77 +262,81 @@ function createTemplate(args, str) {
   return createFn(...args, `return \`${str}\``);
 }
 
-function createFunction0(args, stmt) {
+function createFunction(args, stmt) {
   const body = `with(this){${stmt ? stmt : args}}`;
   return stmt ? createFn(...args, body) : createFn(body);
 }
 
-function createFunction1(args, stmt) {
-  const body = `with(this){return ${stmt ? stmt : args}}`;
-  return stmt ? createFn(...args, body) : createFn(body);
-}
-
 const metaModel = {
-  "input:text": function (el, option, value, queue, binder) {
-    queue.push([null, { option: "value", value: `{{${value}}}`, binder }]);
-    let value1 = `${value}=$event.target.value`;
-    queue.push(["o-on", { option: "input", value: value1, queue }]);
+  "input:text": function (el, opts) {
+    // const {option, value, queue, binder} = opts;
+    let option = "value";
+    let value = `{{${opts.value}}}`;
+    opts.queue.push([null, Object.assign({}, opts, { option, value })]);
+    option = "input";
+    value = `${opts.value}=$event.target.value`;
+    opts.queue.push(["o-on", Object.assign({}, opts, { option, value })]);
   },
-  "input:radio": function (el, option, value, queue, binder) {
-    const value1 = `$el.value?$el.value===String(${value}):${value}`;
-    queue.push(["o-bind", { option: "checked", value: value1, binder }]);
-    const value2 = `
+  "input:radio": function (el, opts) {
+    let option = "checked";
+    let value = `$el.value?$el.value===String(${opts.value}):${opts.value}`;
+    opts.queue.push(["o-bind", Object.assign({}, opts, { option, value })]);
+    option = "input";
+    value = `
       let res=$event.target.value?($event.target.checked?$event.target.value:''): $event.target.checked;
-      ${value}='true'===res?true:('false'===res?false:res);`;
-    queue.push(["o-on", { option: "input", value: value2, queue, binder }]);
+      ${opts.value}='true'===res?true:('false'===res?false:res);`;
+    opts.queue.push(["o-on", Object.assign({}, opts, { option, value })]);
   },
-  "input:checkbox": function (el, option, value, queue, binder) {
-    const value1 = `$el.value?(Array.isArray(${value}) ? !!~${value}.indexOf($el.value) : $el.value===String(${value})):${value}`;
-    queue.push(["o-bind", { option: "checked", value: value1, binder }]);
+  "input:checkbox": function (el, opts) {
+    let option = "checked";
+    let value = `$el.value?(Array.isArray(${opts.value}) ? !!~${opts.value}.indexOf($el.value) : $el.value===String(${opts.value})):${opts.value}`;
+    opts.queue.push(["o-bind", Object.assign({}, opts, { option, value })]);
 
-    const value2 = `if(Array.isArray(${value})) {
-      let idx = ${value}.indexOf($event.target.value);
+    option = "input";
+    value = `if(Array.isArray(${opts.value})) {
+      let idx = ${opts.value}.indexOf($event.target.value);
       if ($event.target.checked) {
-        ~idx || ${value}.push($event.target.value);
+        ~idx || ${opts.value}.push($event.target.value);
       } else {
-        ~idx && ${value}.splice(idx, 1);
+        ~idx && ${opts.value}.splice(idx, 1);
       }
     } else {
-      ${value}=$event.target.value?($event.target.checked?$event.target.value:''):$event.target.checked; 
+      ${opts.value}=$event.target.value?($event.target.checked?$event.target.value:''):$event.target.checked; 
     }`;
-    queue.push(["o-on", { option: "input", value: value2, queue, binder }]);
+    opts.queue.push(["o-on", Object.assign({}, opts, { option, value })]);
   },
-  "select:": function (el, option, value, queue, binder) {
+  "select:": function (el, opts) {
     const isMultiple = el.multiple;
-
+    let value, option;
     if (isMultiple) {
-      const value1 = `Array.prototype.forEach.call($el.options, (it)=> it.selected = !!~${value}.indexOf(it.value))`;
-      queue.push(["o-bind", { option: "", value: value1, binder }]);
+      option = "";
+      value = `Array.prototype.forEach.call($el.options, (it)=> it.selected = !!~${opts.value}.indexOf(it.value))`;
+      opts.queue.push(["o-bind", Object.assign({}, opts, { option, value })]);
 
-      const value2 = `${value} = Array.prototype.filter.call($event.target.options, (it)=>it.value && it.selected).map(it=>it.value)`;
-      queue.push(["o-on", { option: "change", value: value2, binder }]);
+      option = "change";
+      value = `${opts.value} = Array.prototype.filter.call($event.target.options, (it)=>it.value && it.selected).map(it=>it.value)`;
+      opts.queue.push(["o-on", Object.assign({}, opts, { option, value })]);
     } else {
-      const value1 = `Array.prototype.findIndex.call($el.options, (it)=>it.value===String(${value}))`;
-      queue.push([
-        "o-bind",
-        { option: "selectedIndex", value: value1, binder },
-      ]);
-      const value2 = `${value} = $event.target.options[$event.target.selectedIndex].value`;
-      queue.push(["o-on", { option: "change", value: value2, binder }]);
+      option = "selectedIndex";
+      value = `Array.prototype.findIndex.call($el.options, (it)=>it.value===String(${opts.value}))`;
+      opts.queue.push(["o-bind", Object.assign({}, opts, { option, value })]);
+      option = "change";
+      value = `${opts.value} = $event.target.options[$event.target.selectedIndex].value`;
+      opts.queue.push(["o-on", Object.assign({}, opts, { option, value })]);
     }
   },
 };
 
 directive.on("model", {
-  binded(el, obj, { option, value, queue, binder }) {
-    option = option || "value";
+  binded(el, obj, opts) {
+    opts.option = opts.option || "value";
 
     const type = el.getAttribute("type");
     const id = `${el.nodeName.toLowerCase()}:${type ? type.toLowerCase() : ""}`;
     const handler = metaModel[id];
 
     if (handler) {
-      handler(el, option, value, queue, binder);
+      handler(el, opts);
     } else {
       console.warn(`o-model not supported node: ${id}`);
     }
@@ -333,89 +344,43 @@ directive.on("model", {
 });
 
 directive.on("on", {
-  binded(el, obj, { option, value }) {
-    const f = createFunction0(["$event"], value);
-    el.addEventListener(option, (e) => f.call(obj, e));
+  binded(el, obj, { option, value, args }) {
+    let params = args ? Object.keys(args) : [];
+    let vals = args ? Object.values(args) : [];
+    params.push("$event");
+
+    const handler = createFunction(params, value).bind(obj, ...vals);
+    el.addEventListener(option, handler);
   },
 });
 
 directive.on("bind", {
-  binded(el, obj, { option, value, binder }) {
-    let mapping = parseContent(value);
+  binded(el, obj, { option, value, binder, args }) {
+    let mapping = parseText(value, true);
     if (!mapping) return;
-    const action = () => {
-      binder.metaObj.el = el;
-      let val = mapping.get.call(obj);
-      binder.metaObj.el = null;
+    binder.buildMapping(mapping, el, obj, args, (val) => {
       if (option) el[option] = val;
-    };
-    mapping.keys.forEach((it) => binder.$on("." + it, action));
-    action();
-  },
-});
-
-directive.on("for", {
-  binded(el, obj, { option, value, queue, binder }) {
-    const parent = el.parentElement;
-    const template = el;
-    parent.removeChild(el);
-
-    let mapping = parseContent(value);
-    if (!mapping) return;
-
-    let data = mapping.get.call(obj);
-    const elements = [];
-    function appendItem(idx) {
-      const clone = template.cloneNode(true);
-      parent.appendChild(clone);
-      binder.render(data[idx], clone);
-      elements.push(clone);
-    }
-
-    function removeItem(idx) {
-      let item = elements.splice(idx, 1)[0];
-      item && parent.removeChild(item);
-    }
-
-    for (let i = 0; i < data.length; ++i) {
-      appendItem(i);
-    }
-
-    let bus = new EventBus()
-      .on("d", ({ prop }) => removeItem(prop))
-      .on("c", ({ prop }) => appendItem(prop))
-      .on("u", ({ prop }) => binder.fire(`.${mapping.keys[0]}.${prop}`, {}, 2));
-
-    for (let i = 0; i < data.length; ++i) {
-      const idx = String(i);
-      binder.$on(`.${mapping.keys[0]}.${idx}`, ({ prop, type, value }) => {
-        if (idx === prop) {
-          bus.fire(type, { prop });
-        }
-      });
-    }
-    binder.$on("." + mapping.keys[0], ({ prop, type, value }) => {
-      bus.fire(type, { prop });
     });
   },
 });
 
 directive.on("if", {
-  binded(el, obj, { option, value, queue, binder }) {
+  binded(el, obj, opts) {
     const parent = el.parentElement;
     let content = el;
     let sibling = content.nextSibling;
     parent.removeChild(content);
 
-    let mapping = parseContent(value);
+    const { value, binder, args } = opts;
+    let mapping = parseText(value);
     if (!mapping) return;
 
     let isRendered = false;
-    function setIf() {
-      if (mapping.get.call(obj)) {
+    binder.buildMapping(mapping, el, obj, args, (val) => {
+      if (val) {
         parent.insertBefore(content, sibling);
         if (!isRendered) {
-          binder.render(obj, content);
+          binder.render(content, obj, args);
           isRendered = true;
         }
       } else {
@@ -423,18 +388,76 @@ directive.on("if", {
           parent.removeChild(content);
         }
       }
-    }
-
-    setTimeout(() => setIf(), 0);
-
-    binder.$on("." + mapping.keys[0], (_) => setIf());
+    });
   },
 });
 
-export function bindOf(obj, elem) {
+const reFor = /([$\w][$\w\d]*)\s+(in|of)\s+(.*)/g;
+directive.on("for", {
+  binded(el, obj, { value, binder }) {
+    const parent = el.parentElement;
+    const template = el;
+    parent.removeChild(el);
+
+    const items = reFor.exec(value);
+    if (!items) {
+      return console.warn(`o-for: "${value}" is invalid expression`);
+    }
+
+    let [_, param, type, target] = items;
+
+    let mapping = parseText(target);
+    if (!mapping) return;
+
+    const data = binder.buildMapping(mapping, el, obj).get();
+    const elements = [];
+
+    function appendItemAt(idx) {
+      const clone = template.cloneNode(true);
+      parent.appendChild(clone);
+      const obj2 = Object.assign({}, obj);
+      const get = "in" === type ? () => idx : () => data[idx];
+      Object.defineProperty(obj2, param, { get, configurable: true });
+
+      const event = createEvent(mapping.events[0], idx);
+      // binder.render(clone, obj2, { [param]: item }, { event });
+      binder.render(clone, obj2, null, { event });
+      elements.push(clone);
+    }
+
+    function removeItemAt(idx) {
+      let item = elements.splice(idx, 1)[0];
+      item && parent.removeChild(item);
+    }
+
+    let bus = new EventBus()
+      .on("d", ({ prop }) => removeItemAt(prop))
+      .on("c", ({ prop }) => appendItemAt(prop))
+      .on("u", ({ prop }) => {
+        binder.fire(`.${mapping.events[0]}.${prop}.`, {}, 2);
+      });
+
+    for (let i in data) {
+      appendItemAt(i);
+
+      // const idx = String(i);
+      // binder.$on(createEvent(mapping.events[0], i), ({ prop, type, value }) => {
+      //   if (idx === prop) {
+      //     bus.fire(type, { prop });
+      //   }
+      // });
+    }
+
+    binder.$on(createEvent(mapping.events[0]), ({ prop, type, value }) => {
+      bus.fire(type, { prop });
+    });
+  },
+});
+
+export function bindOf(elem, obj) {
   if (!(obj && elem)) return obj;
 
   const ob = new OBinder();
 
-  return ob.bind(obj, elem);
+  return ob.bind(elem, obj);
 }
