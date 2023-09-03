@@ -373,7 +373,8 @@ directive.on("if", {
   binded(el, obj, opts) {
     const parent = el.parentElement;
     let content = el;
-    let sibling = content.nextSibling;
+    let sibling = content.nextElementSibling;
+
     parent.removeChild(content);
 
     const { value, binder, args } = opts;
@@ -400,11 +401,11 @@ directive.on("if", {
 const reFor = /([$\w][$\w\d]*)\s+(in|of)\s+(.*)/;
 directive.on("for", {
   binded(el, obj, { value, binder }) {
+    if (!value) return;
     const parent = el.parentElement;
+    let sibling = el.nextElementSibling;
     const template = el;
     parent.removeChild(el);
-
-    // const items = reFor.match(value);
 
     const items = value.match(reFor);
     if (!items) {
@@ -421,7 +422,7 @@ directive.on("for", {
 
     function appendItemAt(idx) {
       const clone = template.cloneNode(true);
-      parent.appendChild(clone);
+      parent.insertBefore(clone, sibling);
       const obj2 = Object.assign({}, obj);
       const get = "in" === type ? () => idx : () => data[idx];
       Object.defineProperty(obj2, param, { get, configurable: true });
