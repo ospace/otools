@@ -53,6 +53,7 @@ extend(OBinder, EventBus, {
     let fire = noop;
 
     obj = proxyObj(obj, (key, val) => {
+      // const { type } = val;
       const key_ = this.findEvent(key);
       // fire.call(this, key_, val, 3);
       fire.call(this, key_, val, 1);
@@ -167,6 +168,8 @@ extend(OBinder, EventBus, {
 });
 
 function parseContent(value, isReturn = true) {
+  if (!value) return null;
+
   const preRe = /{{([\w\W]+?)}}/g;
   const mappings = [];
   let id = 0;
@@ -188,6 +191,8 @@ function parseContent(value, isReturn = true) {
 }
 
 function parseText(value, isReturn = true) {
+  if (!value) return null;
+
   const reId =
     /(?:\.?[$\w][$\w\d]*\s*|\[\s*(?:\d*|('|")(?:\\\1|.)*?\1)\s*\])*/g;
   const reStr = /('|")((?:\\\1|.)*?)\1/g;
@@ -392,14 +397,16 @@ directive.on("if", {
   },
 });
 
-const reFor = /([$\w][$\w\d]*)\s+(in|of)\s+(.*)/g;
+const reFor = /([$\w][$\w\d]*)\s+(in|of)\s+(.*)/;
 directive.on("for", {
   binded(el, obj, { value, binder }) {
     const parent = el.parentElement;
     const template = el;
     parent.removeChild(el);
 
-    const items = reFor.exec(value);
+    // const items = reFor.match(value);
+
+    const items = value.match(reFor);
     if (!items) {
       return console.warn(`o-for: "${value}" is invalid expression`);
     }
@@ -440,12 +447,12 @@ directive.on("for", {
     for (let i in data) {
       appendItemAt(i);
 
-      // const idx = String(i);
-      // binder.$on(createEvent(mapping.events[0], i), ({ prop, type, value }) => {
-      //   if (idx === prop) {
-      //     bus.fire(type, { prop });
-      //   }
-      // });
+      //       const idx = String(i);
+      //       binder.$on(createEvent(mapping.events[0], i), ({ prop, type, value }) => {
+      //         if (idx === prop) {
+      //           bus.fire(type, { prop });
+      //         }
+      //       });
     }
 
     binder.$on(createEvent(mapping.events[0]), ({ prop, type, value }) => {
