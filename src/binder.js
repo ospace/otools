@@ -416,8 +416,8 @@ directive.on("for", {
     let mapping = parseText(target);
     if (!mapping) return;
 
-    const data = binder.buildMapping(mapping, el, obj).get();
-    const elements = [];
+    let data = null;
+    let elements = [];
 
     function appendItemAt(idx) {
       const clone = template.cloneNode(true);
@@ -444,19 +444,25 @@ directive.on("for", {
         binder.fire(`.${mapping.events[0]}.${prop}.`, {}, 2);
       });
 
-    for (let i in data) {
-      appendItemAt(i);
-
-      //       const idx = String(i);
-      //       binder.$on(createEvent(mapping.events[0], i), ({ prop, type, value }) => {
-      //         if (idx === prop) {
-      //           bus.fire(type, { prop });
-      //         }
-      //       });
+    function refresh() {
+      if (elements.length) {
+        elements.forEach((it) => parent.removeChild(it));
+        elements = [];
+      }
+      data = binder.buildMapping(mapping, el, obj).get();
+      for (let i in data) {
+        appendItemAt(i);
+      }
     }
+    refresh();
 
-    binder.$on(createEvent(mapping.events[0]), ({ prop, type, value }) => {
-      bus.fire(type, { prop });
+    const event = mapping.events[0];
+    binder.$on(createEvent(event), ({ prop, type, value }, e) => {
+      if (event === prop) {
+        refresh();
+      } else {
+        bus.fire(type, { prop });
+      }
     });
   },
 });
