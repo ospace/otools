@@ -55,8 +55,7 @@ extend(OBinder, EventBus, {
     obj = proxyObj(obj, (key, val) => {
       // const { type } = val;
       const key_ = this.findEvent(key);
-      // fire.call(this, key_, val, 3);
-      fire.call(this, key_, val, 1);
+      fire.call(this, key_, val, 3);
     });
     fire = this.fire;
 
@@ -64,18 +63,18 @@ extend(OBinder, EventBus, {
 
     return obj;
   },
-  render(elem, obj, args, ctx) {
+  render(elem, obj, ctx) {
     const errs = [];
     iterateNode(elem, (node) => {
       if (1 === node.nodeType) {
-        this.bindElementNode(node, obj, args, ctx, errs);
+        this.bindElementNode(node, obj, ctx, errs);
       } else if (3 === node.nodeType) {
-        this.bindTextNode(node, obj, args, ctx, errs);
+        this.bindTextNode(node, obj, ctx, errs);
       }
     });
     errs.forEach((e) => console.warn("ERROR:", e));
   },
-  bindElementNode(elem, obj, args, ctx, errs) {
+  bindElementNode(elem, obj, ctx, errs) {
     let queue = [];
     let { true: keywords, false: attrs } = partitioning(
       elem.getAttributeNames(),
@@ -89,7 +88,7 @@ extend(OBinder, EventBus, {
         const [cmd, option] = name.split(":");
         queue.push([
           cmd,
-          { el: elem, option, value: attrValue, queue, binder: this, args },
+          { el: elem, option, value: attrValue, queue, binder: this, ctx },
         ]);
 
         while (queue.length) {
@@ -101,8 +100,8 @@ extend(OBinder, EventBus, {
             }
             cmd.binded(elem, obj, info);
           } else {
-            const { option, args, value } = info;
-            this.bindNodeAttr(elem, option, obj, args, value, ctx, errs);
+            const { option, ctx, value } = info;
+            this.bindNodeAttr(elem, option, obj, value, ctx, errs);
           }
         }
       }
@@ -110,17 +109,17 @@ extend(OBinder, EventBus, {
       attrs &&
         attrs.forEach((attrName) => {
           const attrValue = elem.getAttribute(attrName);
-          this.bindNodeAttr(elem, attrName, obj, args, attrValue, ctx, errs);
+          this.bindNodeAttr(elem, attrName, obj, attrValue, ctx, errs);
         });
     }
   },
-  bindTextNode(elem, obj, args, ctx, errs) {
+  bindTextNode(elem, obj, ctx, errs) {
     const mapping = parseContent(elem.textContent);
     if (!mapping) return;
     const setter = (val) => (elem.textContent = val);
-    this.buildMapping(mapping, elem, obj, args, setter, ctx, errs);
+    this.buildMapping(mapping, elem, obj, ctx, setter, errs);
   },
-  bindNodeAttr(elem, attName, obj, args, value, ctx, errs) {
+  bindNodeAttr(elem, attName, obj, value, ctx, errs) {
     const mapping = parseContent(value);
     if (!mapping) return;
 
@@ -128,11 +127,13 @@ extend(OBinder, EventBus, {
     const setter = useProp
       ? (val) => (elem[attName] = val)
       : (val) => elem.setAttribute(attName, val);
-    this.buildMapping(mapping, elem, obj, args, setter, ctx, errs);
+    this.buildMapping(mapping, elem, obj, ctx, setter, errs);
   },
-  buildMapping(mapping, elem, obj, args, setter, ctx, errs) {
+  buildMapping(mapping, elem, obj, ctx, setter, errs) {
+    const args = ctx && ctx.args;
     const params = args ? Object.keys(args) : [];
     const vals = args ? Object.values(args) : [];
+
     const expr = mapping.expr;
     mapping.get = createFunction(params, expr).bind(obj, ...vals);
     if ("function" === typeof setter) {
@@ -145,11 +146,8 @@ extend(OBinder, EventBus, {
           errs && errs.push([mapping.expr, e]);
         }
       };
-      mapping.events.forEach((it) => this.$on(createEvent(it), mapping.action));
-      if (ctx && ctx.event) {
-        let ev = ctx.event;
-        this.$on(createEvent(ctx.event), mapping.action);
-      }
+      const events = mapping.events.concat((ctx && ctx.events) || []);
+      events.forEach((it) => this.$on(createEvent(it), mapping.action));
       mapping.action();
     }
 
@@ -349,7 +347,8 @@ directive.on("model", {
 });
 
 directive.on("on", {
-  binded(el, obj, { option, value, args }) {
+  binded(el, obj, { option, value, ctx }) {
+    const args = ctx && ctx.args;
     let params = args ? Object.keys(args) : [];
     let vals = args ? Object.values(args) : [];
     params.push("$event");
@@ -360,10 +359,10 @@ directive.on("on", {
 });
 
 directive.on("bind", {
-  binded(el, obj, { option, value, binder, args }) {
+  binded(el, obj, { option, value, binder, ctx }) {
     let mapping = parseText(value, true);
     if (!mapping) return;
-    binder.buildMapping(mapping, el, obj, args, (val) => {
+    binder.buildMapping(mapping, el, obj, ctx, (val) => {
       if (option) el[option] = val;
     });
   },
@@ -373,20 +372,20 @@ directive.on("if", {
   binded(el, obj, opts) {
     const parent = el.parentElement;
     let content = el;
-    let sibling = content.nextElementSibling;
+    let sibling = content.nextSibling;
 
     parent.removeChild(content);
 
-    const { value, binder, args } = opts;
+    const { value, binder, ctx } = opts;
     let mapping = parseText(value);
     if (!mapping) return;
 
     let isRendered = false;
-    binder.buildMapping(mapping, el, obj, args, (val) => {
+    binder.buildMapping(mapping, el, obj, ctx, (val) => {
       if (val) {
         parent.insertBefore(content, sibling);
         if (!isRendered) {
-          binder.render(content, obj, args);
+          binder.render(content, obj, ctx);
           isRendered = true;
         }
       } else {
@@ -403,7 +402,7 @@ directive.on("for", {
   binded(el, obj, { value, binder }) {
     if (!value) return;
     const parent = el.parentElement;
-    let sibling = el.nextElementSibling;
+    let sibling = el.nextSibling;
     const template = el;
     parent.removeChild(el);
 
@@ -423,13 +422,12 @@ directive.on("for", {
     function appendItemAt(idx) {
       const clone = template.cloneNode(true);
       parent.insertBefore(clone, sibling);
-      const obj2 = Object.assign({}, obj);
       const get = "in" === type ? () => idx : () => data[idx];
-      Object.defineProperty(obj2, param, { get, configurable: true });
+      const args = {};
+      Object.defineProperty(args, param, { get, enumerable: true });
 
-      const event = createEvent(mapping.events[0], idx);
-      // binder.render(clone, obj2, { [param]: item }, { event });
-      binder.render(clone, obj2, null, { event });
+      const events = [createEvent(mapping.events[0], idx)];
+      binder.render(clone, obj, { args, events });
       elements.push(clone);
     }
 
