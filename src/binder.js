@@ -146,8 +146,11 @@ extend(OBinder, EventBus, {
           errs && errs.push([mapping.expr, e]);
         }
       };
-      const events = mapping.events.concat((ctx && ctx.events) || []);
-      events.forEach((it) => this.$on(createEvent(it), mapping.action));
+      const events = mapping.events
+        .concat((ctx && ctx.events) || [])
+        .map((it) => createEvent(it));
+      console.log(`buildMapping: events${JSON.stringify(events)}`);
+      events.forEach((it) => this.$on(it, mapping.action));
       mapping.action();
     }
 
@@ -178,7 +181,8 @@ function parseContent(value, isReturn = true) {
 
   if (!mappings.length) return null;
 
-  const events = mappings.map((it) => it.events).flat();
+  let events = mappings.map((it) => it.events).flat();
+  events = events.map((it) => it && it.trim());
   let expr = `((v) => \`${templateText}\`)([${mappings
     .map((it) => `(${it.expr})`)
     .join(",")}])`;
@@ -200,9 +204,9 @@ function parseText(value, isReturn = true) {
 
   let events = mapRegex(reId, expr, (it) => it[0]);
   const excepts = mapRegex(reStr, expr, (it) => it[2]);
-  events = events.filter(
-    (it) => it && !it.startsWith(".") && !~excepts.indexOf(it)
-  );
+  events = events
+    .filter((it) => it && !it.startsWith(".") && !~excepts.indexOf(it))
+    .map((it) => it.trim());
 
   expr = filters.reduce((pre, it) => {
     if ("function" !== typeof window[it])
