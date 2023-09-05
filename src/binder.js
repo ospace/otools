@@ -149,7 +149,6 @@ extend(OBinder, EventBus, {
       const events = mapping.events
         .concat((ctx && ctx.events) || [])
         .map((it) => createEvent(it));
-      console.log(`buildMapping: events${JSON.stringify(events)}`);
       events.forEach((it) => this.$on(it, mapping.action));
       mapping.action();
     }
