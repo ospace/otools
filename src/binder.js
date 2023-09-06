@@ -10,7 +10,6 @@ import {
   noop,
 } from "./utils";
 import { iterateNode } from "./dom";
-import { partitioning } from "./data";
 
 function Directive() {
   this.cmds = new Map();
@@ -41,6 +40,9 @@ extend(Directive, null, {
   convShort(name) {
     let keyword = this.shorts[name.charAt(0)];
     return keyword ? keyword + name.substr(1) : name;
+  },
+  comparePriority(l, r) {
+    return isKeyword(l) ? -1 : isKeyword(r) ? 1 : -1;
   },
 });
 
@@ -102,10 +104,14 @@ extend(OBinder, EventBus, {
   },
   bindElementNode(elem, obj, ctx, errs) {
     let queue = [];
-    for (const attrName of elem.getAttributeNames()) {
+    let attrNames = elem
+      .getAttributeNames()
+      .map((it) => [it, directive.convShort(it)]);
+    attrNames.sort((l, r) => directive.comparePriority(l[1], r[1]));
+    for (const attr of attrNames) {
+      const [attrName, name] = attr;
       const attrValue = elem.getAttribute(attrName);
-      let name = directive.convShort(attrName);
-      if (name.startsWith("o-")) {
+      if (isKeyword(name)) {
         elem.removeAttribute(attrName);
         const [cmd, option] = name.split(":");
         queue.push([
@@ -120,7 +126,7 @@ extend(OBinder, EventBus, {
             if (!cmd) {
               return console.warn(`not supported directive: ${cmdId}`);
             }
-            cmd.binded(elem, obj, info);
+            if (true === cmd.binded(elem, obj, info)) return;
           } else {
             const { option, ctx, value } = info;
             this.bindNodeAttr(elem, option, obj, value, ctx, errs);
@@ -129,46 +135,6 @@ extend(OBinder, EventBus, {
       } else {
         this.bindNodeAttr(elem, attrName, obj, attrValue, ctx, errs);
       }
-    }
-  },
-  bindElementNode0(elem, obj, ctx, errs) {
-    let queue = [];
-    let attrNames = elem
-      .getAttributeNames()
-      .map((it) => directive.convShort(it));
-    let { true: keywords, false: attrs } = partitioning(attrNames, (it) =>
-      it.startsWith("o-")
-    );
-    if (keywords) {
-      for (const attrName of keywords) {
-        const attrValue = elem.getAttribute(attrName);
-        elem.removeAttribute(attrName);
-        const [cmd, option] = attrName.split(":");
-        queue.push([
-          cmd,
-          { el: elem, option, value: attrValue, queue, binder: this, ctx },
-        ]);
-
-        while (queue.length) {
-          const [cmdId, info] = queue.shift();
-          if (cmdId) {
-            const cmd = directive.get(cmdId);
-            if (!cmd) {
-              return console.warn(`not supported directive: ${cmdId}`);
-            }
-            cmd.binded(elem, obj, info);
-          } else {
-            const { option, ctx, value } = info;
-            this.bindNodeAttr(elem, option, obj, value, ctx, errs);
-          }
-        }
-      }
-    } else {
-      attrs &&
-        attrs.forEach((attrName) => {
-          const attrValue = elem.getAttribute(attrName);
-          this.bindNodeAttr(elem, attrName, obj, attrValue, ctx, errs);
-        });
     }
   },
   bindTextNode(elem, obj, ctx, errs) {
@@ -290,6 +256,10 @@ function createEvent(...args) {
     }
   }
   return ret;
+}
+
+function isKeyword(str) {
+  return str && str.startsWith("o-");
 }
 
 const useValueElements = ["input", "textarea", "option", "select", "progress"];
@@ -443,6 +413,7 @@ directive.on("if", {
         }
       }
     });
+    return true;
   },
 });
 
