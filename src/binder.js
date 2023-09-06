@@ -27,7 +27,7 @@ extend(Directive, null, {
           let shortCmdId = this.shorts[short];
           console.warn(`short "${short}" already registried by ${shortCmdId}`);
         } else {
-          this.shorts[short] = cmdId;
+          this.shorts[short] = `${cmdId}:`;
         }
       } else {
         console.warn(`registry of short failed, only allow a char: ${cmdId}`);
@@ -102,6 +102,37 @@ extend(OBinder, EventBus, {
   },
   bindElementNode(elem, obj, ctx, errs) {
     let queue = [];
+    for (const attrName of elem.getAttributeNames()) {
+      const attrValue = elem.getAttribute(attrName);
+      let name = directive.convShort(attrName);
+      if (name.startsWith("o-")) {
+        elem.removeAttribute(attrName);
+        const [cmd, option] = name.split(":");
+        queue.push([
+          cmd,
+          { el: elem, option, value: attrValue, queue, binder: this, ctx },
+        ]);
+
+        while (queue.length) {
+          const [cmdId, info] = queue.shift();
+          if (cmdId) {
+            const cmd = directive.get(cmdId);
+            if (!cmd) {
+              return console.warn(`not supported directive: ${cmdId}`);
+            }
+            cmd.binded(elem, obj, info);
+          } else {
+            const { option, ctx, value } = info;
+            this.bindNodeAttr(elem, option, obj, value, ctx, errs);
+          }
+        }
+      } else {
+        this.bindNodeAttr(elem, attrName, obj, attrValue, ctx, errs);
+      }
+    }
+  },
+  bindElementNode0(elem, obj, ctx, errs) {
+    let queue = [];
     let attrNames = elem
       .getAttributeNames()
       .map((it) => directive.convShort(it));
@@ -111,7 +142,6 @@ extend(OBinder, EventBus, {
     if (keywords) {
       for (const attrName of keywords) {
         const attrValue = elem.getAttribute(attrName);
-        // const name = SHORT_WORDS.getWord(attrName);
         elem.removeAttribute(attrName);
         const [cmd, option] = attrName.split(":");
         queue.push([
@@ -374,12 +404,16 @@ directive.on("on", {
 });
 
 directive.on("bind", {
+  short: "$",
   binded(el, obj, { option, value, binder, ctx }) {
     let mapping = parseText(value, true);
     if (!mapping) return;
-    binder.buildMapping(mapping, el, obj, ctx, (val) => {
-      if (option) el[option] = val;
-    });
+    const useProp = isUseProp(el, option);
+    const setter = useProp
+      ? (val) => (el[option] = val)
+      : (val) => el.setAttribute(option, val);
+
+    binder.buildMapping(mapping, el, obj, ctx, setter);
   },
 });
 
