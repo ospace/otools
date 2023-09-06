@@ -285,6 +285,7 @@ function isUseProp(el, attrName) {
     (~useValueElements.indexOf(tagName) &&
       attrName === "value" &&
       "button" !== el.getAttribute("type")?.toLowerCase()) ||
+    "disabled" === attrName ||
     ("option" === tagName && "selected" === attrName) ||
     ("input" === tagName && "checked" === attrName) ||
     ("muted" === tagName && "video" === attrName)
