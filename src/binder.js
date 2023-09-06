@@ -32,6 +32,10 @@ extend(Directive, null, {
         console.warn(`registry of short failed, only allow a char: ${cmdId}`);
       }
     }
+    if (hook.priority && 99 < hook.priority) {
+      hook.priority = 99;
+      console.warn(`max priority is 99: ${cmdId}`);
+    }
     this.cmds.set(cmdId, hook);
   },
   get(cmd) {
@@ -42,7 +46,19 @@ extend(Directive, null, {
     return keyword ? keyword + name.substr(1) : name;
   },
   comparePriority(l, r) {
-    return isKeyword(l) ? -1 : isKeyword(r) ? 1 : -1;
+    let ret = 0;
+    if (isKeyword(l)) {
+      if (isKeyword(r)) {
+        const pL = this.get(l.split(":")[0]).priority || 99;
+        const pR = this.get(r.split(":")[0]).priority || 99;
+        ret = pL - pR;
+      } else {
+        ret = -1;
+      }
+    } else if (isKeyword(r)) {
+      ret = 1;
+    }
+    return ret;
   },
 });
 
@@ -388,6 +404,7 @@ directive.on("bind", {
 });
 
 directive.on("if", {
+  priority: 1,
   binded(el, obj, opts) {
     const parent = el.parentElement;
     let content = el;
