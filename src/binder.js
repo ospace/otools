@@ -419,11 +419,11 @@ directive.on("if", {
     let isRendered = false;
     binder.buildMapping(mapping, el, obj, ctx, (val) => {
       if (val) {
-        parent.insertBefore(content, sibling);
         if (!isRendered) {
           binder.render(content, obj, ctx);
           isRendered = true;
         }
+        parent.insertBefore(content, sibling);
       } else {
         if (document.body.contains(content)) {
           parent.removeChild(content);
@@ -436,6 +436,7 @@ directive.on("if", {
 
 const reFor = /([$\w][$\w\d]*)\s+(in|of)\s+(.*)/;
 directive.on("for", {
+  priority: 2,
   binded(el, obj, { value, binder }) {
     if (!value) return;
     const parent = el.parentElement;
@@ -458,7 +459,6 @@ directive.on("for", {
 
     function appendItemAt(idx) {
       const clone = template.cloneNode(true);
-      parent.insertBefore(clone, sibling);
       const get = "in" === type ? () => idx : () => data[idx];
       const args = {};
       Object.defineProperty(args, param, { get, enumerable: true });
@@ -466,6 +466,8 @@ directive.on("for", {
       const events = [createEvent(mapping.events[0], idx)];
       binder.render(clone, obj, { args, events });
       elements.push(clone);
+
+      parent.insertBefore(clone, sibling);
     }
 
     function removeItemAt(idx) {
@@ -500,6 +502,8 @@ directive.on("for", {
         bus.fire(type, { prop });
       }
     });
+
+    return true;
   },
 });
 
