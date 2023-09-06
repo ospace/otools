@@ -289,16 +289,17 @@ export function activeHide() {
 
 export function iterateNode(node, visitor) {
   assert.function(visitor, "visitor");
-
   if (!node) return;
 
   const visited = now();
   const waits = [node];
-  let el;
+  let el, p;
   while (0 < waits.length) {
     el = waits.shift();
-    if (!document.body.contains(el)) continue;
+    // if (!document.body.contains(el)) continue;
+    p = el.parentElement;
     if (false === visitor(el)) return;
+    if (p && !p.contains(el)) continue;
     for (el = el.firstChild; el; el = el.nextSibling) {
       if (el._o_visited === visited) {
         throw Error(

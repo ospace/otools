@@ -12,13 +12,39 @@ import {
 import { iterateNode } from "./dom";
 import { partitioning } from "./data";
 
-const SHORT_WORDS = {
-  "@": "o-on:",
-  getWord(name) {
-    let keyword = SHORT_WORDS[name.charAt(0)];
+function Directive() {
+  this.cmds = new Map();
+  this.shorts = {};
+}
+
+extend(Directive, null, {
+  on(cmd, hook) {
+    let cmdId = `o-${cmd}`;
+    let short = hook.short;
+    if (short) {
+      if (1 === short.length) {
+        if (this.shorts[short]) {
+          let shortCmdId = this.shorts[short];
+          console.warn(`short "${short}" already registried by ${shortCmdId}`);
+        } else {
+          this.shorts[short] = cmdId;
+        }
+      } else {
+        console.warn(`registry of short failed, only allow a char: ${cmdId}`);
+      }
+    }
+    this.cmds.set(cmdId, hook);
+  },
+  get(cmd) {
+    return this.cmds.get(cmd);
+  },
+  convShort(name) {
+    let keyword = this.shorts[name.charAt(0)];
     return keyword ? keyword + name.substr(1) : name;
   },
-};
+});
+
+const directive = new Directive();
 
 function OBinder() {
   EventBus.apply(this, arguments);
@@ -76,16 +102,18 @@ extend(OBinder, EventBus, {
   },
   bindElementNode(elem, obj, ctx, errs) {
     let queue = [];
-    let { true: keywords, false: attrs } = partitioning(
-      elem.getAttributeNames(),
-      (it) => it.startsWith("o-")
+    let attrNames = elem
+      .getAttributeNames()
+      .map((it) => directive.convShort(it));
+    let { true: keywords, false: attrs } = partitioning(attrNames, (it) =>
+      it.startsWith("o-")
     );
     if (keywords) {
       for (const attrName of keywords) {
         const attrValue = elem.getAttribute(attrName);
-        const name = SHORT_WORDS.getWord(attrName);
+        // const name = SHORT_WORDS.getWord(attrName);
         elem.removeAttribute(attrName);
-        const [cmd, option] = name.split(":");
+        const [cmd, option] = attrName.split(":");
         queue.push([
           cmd,
           { el: elem, option, value: attrValue, queue, binder: this, ctx },
@@ -234,8 +262,6 @@ function createEvent(...args) {
   return ret;
 }
 
-createEvent("a");
-
 const useValueElements = ["input", "textarea", "option", "select", "progress"];
 function isUseProp(el, attrName) {
   const tagName = el.nodeName.toLowerCase();
@@ -248,21 +274,6 @@ function isUseProp(el, attrName) {
     ("muted" === tagName && "video" === attrName)
   );
 }
-
-function Directive() {
-  this.cmds = new Map();
-}
-
-extend(Directive, null, {
-  on(cmd, hook) {
-    this.cmds.set(`o-${cmd}`, hook);
-  },
-  get(cmd) {
-    return this.cmds.get(cmd);
-  },
-});
-
-const directive = new Directive();
 
 function createTemplate(args, str) {
   return createFn(...args, `return \`${str}\``);
@@ -350,6 +361,7 @@ directive.on("model", {
 });
 
 directive.on("on", {
+  short: "@",
   binded(el, obj, { option, value, ctx }) {
     const args = ctx && ctx.args;
     let params = args ? Object.keys(args) : [];
